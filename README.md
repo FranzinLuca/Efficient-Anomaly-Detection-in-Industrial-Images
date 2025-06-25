@@ -3,5 +3,5 @@ Efficient Anomaly Detection in Industrial Images using Transformers with  Dynami
 
 Datasets Link:
 
-BTAD: https://www.kaggle.com/datasets/thtuan/btad-beantech-anomaly-detection \n
+BTAD: https://www.kaggle.com/datasets/thtuan/btad-beantech-anomaly-detection \
 MVTec AD: https://www.kaggle.com/datasets/ipythonx/mvtec-ad/data
