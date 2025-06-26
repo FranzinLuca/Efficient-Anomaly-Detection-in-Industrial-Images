@@ -145,11 +145,26 @@ def load_train_paths_BTAD(main_folder):
 def load_test_paths_BTAD(main_folder):
     subfolders = os.listdir(main_folder)
     test_folder_paths_ko = [f"{main_folder}/{base_path}/test/ko" for base_path in subfolders]
+    test_folder_paths_ko = [p for p in test_folder_paths_ko if os.path.isdir(p)]
+
     test_folder_paths_ok = [f"{main_folder}/{base_path}/test/ok" for base_path in subfolders]
+    test_folder_paths_ok = [p for p in test_folder_paths_ok if os.path.isdir(p)]
+
     gt_folder_paths_ko = [f"{main_folder}/{base_path}/ground_truth/ko" for base_path in subfolders]
+    gt_folder_paths_ko = [p for p in gt_folder_paths_ko if os.path.isdir(p)]
+
     test_folder_paths = test_folder_paths_ko + test_folder_paths_ok
+
     img_test_paths = [f"{path}/{img}" for path in test_folder_paths for img in os.listdir(path)]
     img_gt_paths = [f"{path}/{img}" for path in gt_folder_paths_ko for img in os.listdir(path)]
+
+    num_test = len(img_test_paths)
+    num_gt = len(img_gt_paths)
+
+    if num_test > num_gt:
+        padding = [None] * (num_test - num_gt)
+        img_gt_paths.extend(padding)
+
     return img_test_paths, img_gt_paths
 
 def load_BTAD(main_path, transform=None, batch_size=32, pin_memory=True):
