@@ -172,18 +172,24 @@ def load_test_paths_BTAD(main_folder):
 
     return img_test_paths, img_gt_paths
 
-def load_BTAD(main_path, transform=None, batch_size=32, pin_memory=True):
+def load_BTAD(main_path, transform_train=None,transform_test=None, batch_size=32, pin_memory=True):
     train_paths, _ = load_train_paths_BTAD(main_path)
     test_paths, gt_paths = load_test_paths_BTAD(main_path)
     
-    if transform is None:
-        transform = transforms.Compose([
+    if transform_train is None:
+        transform_train = transforms.Compose([
+            transforms.Resize((512, 512)),
+            transforms.ToTensor(),
+        ])
+
+    if transform_test is None:
+        transform_test = transforms.Compose([
             transforms.Resize((512, 512)),
             transforms.ToTensor(),
         ])
     
-    dataset_train = load_dataset_BTAD(train_paths, transform=transform)
-    dataset_test = load_dataset_BTAD(test_paths, transform=transform, ground_truth_paths=gt_paths)
+    dataset_train = load_dataset_BTAD(train_paths, transform=transform_train)
+    dataset_test = load_dataset_BTAD(test_paths, transform=transform_test, ground_truth_paths=gt_paths)
     
     train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
     test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
