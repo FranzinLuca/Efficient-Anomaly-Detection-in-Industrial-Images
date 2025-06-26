@@ -108,9 +108,9 @@ def load_MVTEC_AD(main_path, transform, batch_size=32):
 # BTAD #
 # ------------------------------------------------ #
 class load_dataset_BTAD(Dataset):
-    def __init__(self, image_paths, transform = None, ground_truth_paths=[]):
+    def __init__(self, image_paths, transform = None, ground_truth_paths=None):
         self.paths = image_paths
-        self.ground_truth_paths = ground_truth_paths
+        self.ground_truth_paths = ground_truth_paths if ground_truth_paths is not None else []
         self.transform = transform
         
     def __len__(self):
@@ -126,13 +126,18 @@ class load_dataset_BTAD(Dataset):
             label = 0
         elif "ok" in path_string:
             label = 1
+        else:
+            label = 1
 
-        if len(self.ground_truth_paths)>0:
-            img_gt = Image.open(self.ground_truth_paths[i]).convert('RGB')
+        gt_path = self.ground_truth_paths[i] if self.ground_truth_paths and i < len(self.ground_truth_paths) else None
+
+        if gt_path is not None:
+            img_gt = Image.open(gt_path).convert('L')
             if self.transform:
                 img_gt=self.transform(img_gt)
         else:
-            img_gt = torch.zeros((1, 512, 512))
+            _, H, W = img_tensor.shape
+            img_gt_tensor = torch.zeros((1, H, W))
         
         return img, label, img_gt
     
