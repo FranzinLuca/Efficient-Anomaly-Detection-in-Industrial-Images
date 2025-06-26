@@ -153,7 +153,7 @@ def load_test_paths_BTAD(main_folder):
     test_folder_paths_ko = [f"{main_folder}/{base_path}/test/ko" for base_path in subfolders]
     test_folder_paths_ok = [f"{main_folder}/{base_path}/test/ok" for base_path in subfolders]
     gt_folder_paths_ko = [f"{main_folder}/{base_path}/ground_truth/ko" for base_path in subfolders]
-    test_folder_paths = test_folder_paths_ok + test_folder_paths_ko
+    test_folder_paths = test_folder_paths_ko + test_folder_paths_ok
     img_test_paths = [f"{path}/{img}" for path in test_folder_paths for img in os.listdir(path)]
     img_gt_paths = [f"{path}/{img}" for path in gt_folder_paths_ko for img in os.listdir(path)]
     return img_test_paths, img_gt_paths
