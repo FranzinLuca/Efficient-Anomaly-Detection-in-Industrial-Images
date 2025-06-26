@@ -146,7 +146,7 @@ def load_train_paths_BTAD(main_folder):
     subfolders = os.listdir(main_folder)
     train_folder_paths = [f"{main_folder}/{base_path}/train/ok" for base_path in subfolders]
     img_train_paths = [f"{path}/{img}" for path in train_folder_paths for img in os.listdir(path)]
-    return img_train_paths, _
+    return img_train_paths, None
 
 def load_test_paths_BTAD(main_folder):
     subfolders = os.listdir(main_folder)
