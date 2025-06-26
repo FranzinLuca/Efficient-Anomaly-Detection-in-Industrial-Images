@@ -175,6 +175,9 @@ def load_test_paths_BTAD(main_folder):
 def load_BTAD(main_path, transform=None, batch_size=32, pin_memory=True):
     train_paths, _ = load_train_paths_BTAD(main_path)
     test_paths, gt_paths = load_test_paths_BTAD(main_path)
+    print(len(test_paths))
+    print(len(gt_paths)
+
     
     if transform is None:
         transform = transforms.Compose([
