@@ -194,5 +194,3 @@ def load_BTAD(main_path, transform_train=None,transform_test=None, batch_size=32
     train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
     test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
     return train_dataloader, test_dataloader
-
-train_loader, test_loader = load_BTAD(main_folder_BTAD, batch_size=BATCH_SIZE)
