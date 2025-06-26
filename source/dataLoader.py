@@ -136,8 +136,8 @@ class load_dataset_BTAD(Dataset):
             if self.transform:
                 img_gt=self.transform(img_gt)
         else:
-            _, H, W = img_tensor.shape
-            img_gt_tensor = torch.zeros((1, H, W))
+            _, H, W = img.shape
+            img_gt = torch.zeros((1, H, W))
         
         return img, label, img_gt
     
@@ -175,7 +175,7 @@ def load_test_paths_BTAD(main_folder):
 def load_BTAD(main_path, transform=None, batch_size=32, pin_memory=True):
     train_paths, _ = load_train_paths_BTAD(main_path)
     test_paths, gt_paths = load_test_paths_BTAD(main_path)
-
+    
     if transform is None:
         transform = transforms.Compose([
             transforms.Resize((512, 512)),
@@ -188,3 +188,5 @@ def load_BTAD(main_path, transform=None, batch_size=32, pin_memory=True):
     train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
     test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
     return train_dataloader, test_dataloader
+
+train_loader, test_loader = load_BTAD(main_folder_BTAD, batch_size=BATCH_SIZE)
