@@ -152,7 +152,7 @@ def load_test_paths_BTAD(main_folder):
     img_gt_paths = [f"{path}/{img}" for path in gt_folder_paths_ko for img in os.listdir(path)]
     return img_test_paths, img_gt_paths
 
-def load_BTAD(main_path, transform=None, batch_size=32):
+def load_BTAD(main_path, transform=None, batch_size=32, pin_memory=True):
     train_paths, _ = load_train_paths_BTAD(main_path)
     test_paths, gt_paths = load_test_paths_BTAD(main_path)
     
@@ -165,6 +165,6 @@ def load_BTAD(main_path, transform=None, batch_size=32):
     dataset_train = load_dataset_BTAD(train_paths, transform=transform)
     dataset_test = load_dataset_BTAD(test_paths, transform=transform, ground_truth_paths=gt_paths)
     
-    train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
-    test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False)
+    train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
+    test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
     return train_dataloader, test_dataloader
