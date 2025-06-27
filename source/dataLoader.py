@@ -5,140 +5,122 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from torchvision import transforms
+import logging
 
-# ------------------------------------------------ #
-# MVTEC_AD #
-# ------------------------------------------------ #
-class Dataset_MVTEC_AD(Dataset):
-    def __init__(self,root_dir,mode,transform=None,class_selected="all",augment=False,aug_prob=0.5):
-        self.root_dir=root_dir
-        self.mode=mode
-        self.transform=transform
-        self.augment=augment and mode=='train'
-        self.aug_prob=aug_prob
-        self.classes=[]
-        self.samples = []
-        self.class_to_idx =0
-        self.type_class=class_selected
-        
-        if self.mode=='train':
-            for class_name in tqdm(os.listdir(root_dir), desc="Classes"):
-                if self.type_class==class_name:
-                    class_path = os.path.join(root_dir,class_name,"train","good")
-                    if not os.path.isdir(class_path):
-                        continue
-                    
-                    img_paths=glob.glob(os.path.join(class_path, "*.png"))
-                     
-                    for img_path in tqdm(img_paths,desc=f"Loading {class_name}", leave=False):
-                        self.samples.append((img_path,self.class_to_idx,1))
-                    print(f"takes all sample class {class_name}")
-                elif self.type_class=="all":
-                    class_path = os.path.join(root_dir,class_name,"train","good")
-                    if not os.path.isdir(class_path):
-                        continue
-                    img_paths=glob.glob(os.path.join(class_path, "*.png"))
-                    
-                    self.classes.append(class_name)
-                    
-                    for img_path in tqdm(img_paths,desc=f"Loading {class_name}", leave=False):
-                        self.samples.append((img_path,self.class_to_idx,1))
-                    
-                self.class_to_idx+=1
-        elif self.mode=='test':
-            for class_name in tqdm(os.listdir(root_dir),desc="Classes"):
-                if self.type_class==class_name:
-                    class_path=os.path.join(root_dir,class_name,"test")
-                    path_ground_truth=os.path.join(root_dir,class_name,"ground_truth")
-                
-                    if not os.path.isdir(class_path):
-                        continue
-                    list_path=[img_modified_path for img_modified_path in os.listdir(class_path)]
-    
-                    
-                    for path_test_img in list_path:
-                        img_paths=glob.glob(os.path.join(class_path,path_test_img,"*.png"))
-                        if path_test_img!="good":
-                            img_ground_truth=glob.glob(os.path.join(path_ground_truth,path_test_img,"*.png"))
-                            for img_path in range(0,len(img_paths)):
-                                self.samples.append((img_paths[img_path],img_ground_truth[img_path],self.class_to_idx,0))
-                        elif path_test_img=="good":
-                            for img_path in range(0,len(img_paths)):
-                                self.samples.append((img_paths[img_path],None,self.class_to_idx,1))
-                   
-                elif self.type_class=="all":
-                    class_path=os.path.join(root_dir,class_name,"test")
-                    path_ground_truth=os.path.join(root_dir,class_name,"ground_truth")
-                    
-                    if not os.path.isdir(class_path):
-                        continue
-                    list_path=[img_modified_path for img_modified_path in os.listdir(class_path)]
-                    
-                    self.classes.append(class_name)
-                    
-                    for path_test_img in list_path:
-                        img_paths=glob.glob(os.path.join(class_path,path_test_img,"*.png"))
-                        if path_test_img!="good":
-                            img_ground_truth=glob.glob(os.path.join(path_ground_truth,path_test_img,"*.png"))
-                            for img_path in range(0,len(img_paths)):
-                                self.samples.append((img_paths[img_path],img_ground_truth[img_path],self.class_to_idx,0))
-                        elif path_test_img=="good":
-                            for img_path in range(0,len(img_paths)):
-                                self.samples.append((img_paths[img_path],None,self.class_to_idx,1))
-                self.class_to_idx+=1
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
+def load_train_paths(main_folder, class_selected=None):                                    
+    img_train_paths = []
+    try:
+        # Determine which subfolders to process
+        if class_selected:
+            # If a specific class is selected, only consider that one
+            class_path = os.path.join(main_folder, class_selected)
+            subfolders = [class_selected] if os.path.isdir(class_path) else []
+            if not subfolders:
+                logging.warning(f"Selected class folder '{class_selected}' not found in '{main_folder}'.")
         else:
-            assert("error of parameter mode!=train and mode!=test")
-            
-    def __len__(self):
-        return len(self.samples)
-    def __getitem__(self,idx):
-        if self.mode=="test":
-            img_path,_,label,normal_img=self.samples[idx]
+            # Otherwise, get all actual directories in the main folder
+            subfolders = [d.name for d in os.scandir(main_folder) if d.is_dir()]
+
+        # Iterate through the selected class folders
+        for class_folder in subfolders:
+            train_folder = os.path.join(main_folder, class_folder, 'train')
+
+            # Check if the 'train' subdirectory exists before trying to access it
+            if not os.path.isdir(train_folder):
+                logging.info(f"Skipping '{class_folder}': 'train' directory not found.")
+                continue
+
+            # Iterate through the subdirectories within the 'train' folder (e.g., 'good', 'bad')
+            for item in os.scandir(train_folder):
+                if item.is_dir():
+                    image_folder = item.path
+                    try:
+                        # Find all files within the image folder
+                        for img_file in os.listdir(image_folder):
+                            full_path = os.path.join(image_folder, img_file)
+                            # Add a check to ensure we are only adding files, not nested directories
+                            if os.path.isfile(full_path):
+                                img_train_paths.append(full_path)
+                    except FileNotFoundError:
+                        logging.error(f"Error accessing directory: {image_folder}")
+
+    except FileNotFoundError:
+        logging.error(f"Main folder not found: {main_folder}")
+        return [] # Return an empty list if the main directory doesn't exist
+
+    return img_train_paths
+
+def load_test_paths(main_folder, class_selected=None):
+    test_image_paths = []
+    gt_image_paths = []
+    try:
+        # Determine which top-level class folders to process
+        if class_selected:
+            subfolders = [class_selected] if os.path.isdir(os.path.join(main_folder, class_selected)) else []
+            if not subfolders:
+                logging.warning(f"Selected class folder '{class_selected}' not found in '{main_folder}'.")
         else:
-            img_path, label,normal_img = self.samples[idx]
+            subfolders = [d.name for d in os.scandir(main_folder) if d.is_dir()]
+
+    except FileNotFoundError:
+        logging.error(f"Main folder not found: {main_folder}")
+        return [], []
+
+    # Process each class folder (e.g., 'wood', 'carpet')
+    for class_folder in subfolders:
+        test_dir = os.path.join(main_folder, class_folder, 'test')
+        gt_dir = os.path.join(main_folder, class_folder, 'ground_truth')
+
+        # Get subfolder names for test and ground_truth, if they exist
         try:
-            img=Image.open(img_path).convert('RGB')
-        except Exception as e:
-            print(f"Error loading images at idx {idx}:")
-            print(f"RGB path: {img_path}")
-            raise e
-        if self.transform:
-            img=self.transform(img)
-        if self.augment:
-            img=apply_random_augmentation(img,self.aug_prob)
-        return img,label,normal_img
+            test_subfolders = {d.name for d in os.scandir(test_dir) if d.is_dir()}
+        except FileNotFoundError:
+            logging.warning(f"Skipping class '{class_folder}': 'test' directory not found.")
+            continue # Move to the next class_folder
 
+        try:
+            gt_subfolders = {d.name for d in os.scandir(gt_dir) if d.is_dir()}
+        except FileNotFoundError:
+            gt_subfolders = set() # Assume no ground truth folders if the directory is missing
+            logging.info(f"Class '{class_folder}': 'ground_truth' directory not found.")
 
-def load_MVTEC_AD(main_path, transform, batch_size=32, class_selected=None):
-    # Download the MVTec AD dataset from Kaggle
-    #path = kagglehub.dataset_download("ipythonx/mvtec-ad")
-    #print("Path to dataset files:", path)
+        # Find subfolders that are in 'test' but NOT in 'ground_truth'
+        extra_test_folders = test_subfolders - gt_subfolders
 
-    if transform is None:
-        transform = transforms.Compose([
-            transforms.Resize((512, 512)),
-            transforms.ToTensor(),
-        ])
+        # Process each subfolder found in the test directory (e.g., 'good', 'bad')
+        for subfolder_name in sorted(list(test_subfolders)): # sorted for deterministic order
+            current_test_path = os.path.join(test_dir, subfolder_name)
+            
+            try:
+                # Get all image file paths from the current test subfolder
+                image_files = [f for f in os.listdir(current_test_path) if os.path.isfile(os.path.join(current_test_path, f))]
+                test_image_paths.extend([os.path.join(current_test_path, img) for img in image_files])
+                
+                # --- THIS IS THE CORRECTED CONDITIONAL ---
+                # Check if this subfolder is one of the "extra" ones
+                if subfolder_name in extra_test_folders:
+                    # If so, add None placeholders for the ground truth paths
+                    gt_image_paths.extend([None] * len(image_files))
+                else:
+                    # Otherwise, get the corresponding ground truth image paths
+                    current_gt_path = os.path.join(gt_dir, subfolder_name)
+                    gt_files = [f for f in os.listdir(current_gt_path) if os.path.isfile(os.path.join(current_gt_path, f))]
+                    gt_image_paths.extend([os.path.join(current_gt_path, img) for img in gt_files])
 
-    # train and test dataset paths
-    train_dataset=Dataset_MVTEC_AD(main_path,mode="train",transform=transform)
-    test_dataset=Dataset_MVTEC_AD(main_path,mode="test",transform=transform)
+            except FileNotFoundError:
+                logging.warning(f"Could not access directory or contents for '{current_test_path}'")
+                continue # Skip this subfolder and move to the next
 
-    # Create DataLoader for training,validation and test datasets
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, class_selected=class_selected)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False, class_selected=class_selected)
-    return train_loader, test_loader
+    return test_image_paths, gt_image_paths, str(extra_test_folders)
 
-
-
-# ------------------------------------------------ #
-# BTAD #
-# ------------------------------------------------ #
-class load_dataset_BTAD(Dataset):
-    def __init__(self, image_paths, transform = None, ground_truth_paths=None):
+class Img_Dataset(Dataset):
+    def __init__(self, image_paths,ground_truth_paths=None, transform = None, good_fld=None):
         self.paths = image_paths
         self.ground_truth_paths = ground_truth_paths if ground_truth_paths is not None else []
         self.transform = transform
+        self.good_folder = good_fld
         
     def __len__(self):
         return len(self.paths)
@@ -148,13 +130,13 @@ class load_dataset_BTAD(Dataset):
         img = Image.open(path_string).convert('RGB')
         if self.transform:
             img=self.transform(img)
-        
-        if "ko" in path_string:
-            label = 0
-        elif "ok" in path_string:
+
+        if self.good_folder == None:
+            label = 1
+        elif self.good_folder in path_string:
             label = 1
         else:
-            label = 1
+            label = 0
 
         gt_path = self.ground_truth_paths[i] if self.ground_truth_paths and i < len(self.ground_truth_paths) else None
 
@@ -167,45 +149,10 @@ class load_dataset_BTAD(Dataset):
             img_gt = torch.zeros((1, H, W))
         
         return img, label, img_gt
-    
-def load_train_paths_BTAD(main_folder, class_selected=None):
-    subfolders = os.listdir(main_folder)
-    if class_selected in subfolders:
-        subfolders=[class_selected]
-    train_folder_paths = [f"{main_folder}/{base_path}/train/ok" for base_path in subfolders]
-    img_train_paths = [f"{path}/{img}" for path in train_folder_paths for img in os.listdir(path)]
-    return img_train_paths, None
 
-def load_test_paths_BTAD(main_folder, class_selected=None):
-    subfolders = os.listdir(main_folder)
-    if class_selected in subfolders:
-        subfolders=[class_selected]
-    test_folder_paths_ko = [f"{main_folder}/{base_path}/test/ko" for base_path in subfolders]
-    test_folder_paths_ko = [p for p in test_folder_paths_ko if os.path.isdir(p)]
-
-    test_folder_paths_ok = [f"{main_folder}/{base_path}/test/ok" for base_path in subfolders]
-    test_folder_paths_ok = [p for p in test_folder_paths_ok if os.path.isdir(p)]
-
-    gt_folder_paths_ko = [f"{main_folder}/{base_path}/ground_truth/ko" for base_path in subfolders]
-    gt_folder_paths_ko = [p for p in gt_folder_paths_ko if os.path.isdir(p)]
-
-    test_folder_paths = test_folder_paths_ko + test_folder_paths_ok
-
-    img_test_paths = [f"{path}/{img}" for path in test_folder_paths for img in os.listdir(path)]
-    img_gt_paths = [f"{path}/{img}" for path in gt_folder_paths_ko for img in os.listdir(path)]
-
-    num_test = len(img_test_paths)
-    num_gt = len(img_gt_paths)
-
-    if num_test > num_gt:
-        padding = [None] * (num_test - num_gt)
-        img_gt_paths.extend(padding)
-
-    return img_test_paths, img_gt_paths
-
-def load_BTAD(main_path, transform_train=None,transform_test=None, batch_size=32, pin_memory=True, class_selected=None):
-    train_paths, _ = load_train_paths_BTAD(main_path, class_selected=class_selected)
-    test_paths, gt_paths = load_test_paths_BTAD(main_path,  class_selected=class_selected)
+def load_dataset(main_path, transform_train=None,transform_test=None, batch_size=32, pin_memory=True, class_selected=None):
+    train_paths = load_train_paths(main_path, class_selected=class_selected)
+    test_paths, gt_paths, good_folder = load_test_paths(main_path,  class_selected=class_selected)
     
     if transform_train is None:
         transform_train = transforms.Compose([
@@ -219,8 +166,8 @@ def load_BTAD(main_path, transform_train=None,transform_test=None, batch_size=32
             transforms.ToTensor(),
         ])
     
-    dataset_train = load_dataset_BTAD(train_paths, transform=transform_train)
-    dataset_test = load_dataset_BTAD(test_paths, transform=transform_test, ground_truth_paths=gt_paths)
+    dataset_train = Img_Dataset(train_paths, transform=transform_train)
+    dataset_test = Img_Dataset(test_paths, transform=transform_test, ground_truth_paths=gt_paths, good_fld=good_folder)
     
     train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
     test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
