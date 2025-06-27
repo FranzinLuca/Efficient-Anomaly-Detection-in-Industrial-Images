@@ -109,7 +109,7 @@ class Dataset_MVTEC_AD(Dataset):
         return img,label,normal_img
 
 
-def load_MVTEC_AD(main_path, transform, batch_size=32):
+def load_MVTEC_AD(main_path, transform, batch_size=32, class_selected=None):
     # Download the MVTec AD dataset from Kaggle
     #path = kagglehub.dataset_download("ipythonx/mvtec-ad")
     #print("Path to dataset files:", path)
@@ -125,8 +125,8 @@ def load_MVTEC_AD(main_path, transform, batch_size=32):
     test_dataset=Dataset_MVTEC_AD(main_path,mode="test",transform=transform)
 
     # Create DataLoader for training,validation and test datasets
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, class_selected=class_selected)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False, class_selected=class_selected)
     return train_loader, test_loader
 
 
