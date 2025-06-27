@@ -141,14 +141,18 @@ class load_dataset_BTAD(Dataset):
         
         return img, label, img_gt
     
-def load_train_paths_BTAD(main_folder):
+def load_train_paths_BTAD(main_folder, class_selected=None):
     subfolders = os.listdir(main_folder)
+    if class_selected in subfolders:
+        subfolders=[class_selected]
     train_folder_paths = [f"{main_folder}/{base_path}/train/ok" for base_path in subfolders]
     img_train_paths = [f"{path}/{img}" for path in train_folder_paths for img in os.listdir(path)]
     return img_train_paths, None
 
-def load_test_paths_BTAD(main_folder):
+def load_test_paths_BTAD(main_folder, class_selected=None):
     subfolders = os.listdir(main_folder)
+    if class_selected in subfolders:
+        subfolders=[class_selected]
     test_folder_paths_ko = [f"{main_folder}/{base_path}/test/ko" for base_path in subfolders]
     test_folder_paths_ko = [p for p in test_folder_paths_ko if os.path.isdir(p)]
 
@@ -172,9 +176,9 @@ def load_test_paths_BTAD(main_folder):
 
     return img_test_paths, img_gt_paths
 
-def load_BTAD(main_path, transform_train=None,transform_test=None, batch_size=32, pin_memory=True):
-    train_paths, _ = load_train_paths_BTAD(main_path)
-    test_paths, gt_paths = load_test_paths_BTAD(main_path)
+def load_BTAD(main_path, transform_train=None,transform_test=None, batch_size=32, pin_memory=True, class_selected=None):
+    train_paths, _ = load_train_paths_BTAD(main_path, class_selected=class_selected)
+    test_paths, gt_paths = load_test_paths_BTAD(main_path,  class_selected=class_selected)
     
     if transform_train is None:
         transform_train = transforms.Compose([
