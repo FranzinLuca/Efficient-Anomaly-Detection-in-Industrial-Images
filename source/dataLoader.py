@@ -113,7 +113,7 @@ def load_test_paths(main_folder, class_selected=None):
                 logging.warning(f"Could not access directory or contents for '{current_test_path}'")
                 continue # Skip this subfolder and move to the next
 
-    return test_image_paths, gt_image_paths, str(extra_test_folders)
+    return test_image_paths, gt_image_paths, extra_test_folders
 
 class Img_Dataset(Dataset):
     def __init__(self, image_paths,ground_truth_paths=None, transform = None, good_fld=None):
@@ -152,7 +152,9 @@ class Img_Dataset(Dataset):
 
 def load_dataset(main_path, transform_train=None,transform_test=None, batch_size=32, pin_memory=True, class_selected=None):
     train_paths = load_train_paths(main_path, class_selected=class_selected)
-    test_paths, gt_paths, good_folder = load_test_paths(main_path,  class_selected=class_selected)
+    test_paths, gt_paths, gd_folder = load_test_paths(main_path,  class_selected=class_selected)
+
+    good_folder = list(gd_folder)[0]
     
     if transform_train is None:
         transform_train = transforms.Compose([
@@ -168,7 +170,7 @@ def load_dataset(main_path, transform_train=None,transform_test=None, batch_size
     
     dataset_train = Img_Dataset(train_paths, transform=transform_train)
     dataset_test = Img_Dataset(test_paths, transform=transform_test, ground_truth_paths=gt_paths, good_fld=good_folder)
-    
+
     train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
     test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
     return train_dataloader, test_dataloader
