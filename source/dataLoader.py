@@ -10,7 +10,7 @@ from torchvision import transforms
 # MVTEC_AD #
 # ------------------------------------------------ #
 class Dataset_MVTEC_AD(Dataset):
-    def __init__(self,root_dir,mode,transform=None,augment=False,aug_prob=0.5):
+    def __init__(self,root_dir,mode,transform=None,class_selected="all",augment=False,aug_prob=0.5):
         self.root_dir=root_dir
         self.mode=mode
         self.transform=transform
@@ -18,47 +18,74 @@ class Dataset_MVTEC_AD(Dataset):
         self.aug_prob=aug_prob
         self.classes=[]
         self.samples = []
-        self.class_to_idx = {}
+        self.class_to_idx =0
+        self.type_class=class_selected
+        
         if self.mode=='train':
-             for class_name in tqdm(os.listdir(root_dir), desc="Classes"):
-                 
-                 class_path = os.path.join(root_dir,class_name,"train","good")
-                 if not os.path.isdir(class_path):
-                    continue
-                 self.classes.append(class_name)
+            for class_name in tqdm(os.listdir(root_dir), desc="Classes"):
+                if self.type_class==class_name:
+                    class_path = os.path.join(root_dir,class_name,"train","good")
+                    if not os.path.isdir(class_path):
+                        continue
+                    
+                    img_paths=glob.glob(os.path.join(class_path, "*.png"))
                      
-                 if class_name not in self.class_to_idx:
-                     self.class_to_idx[class_name]=len(self.class_to_idx)
-                     
-                 img_paths=glob.glob(os.path.join(class_path, "*.png"))
-                 
-                 for img_path in tqdm(img_paths,desc=f"Loading {class_name}", leave=False):
-                     self.samples.append((img_path,self.class_to_idx[class_name],1))
+                    for img_path in tqdm(img_paths,desc=f"Loading {class_name}", leave=False):
+                        self.samples.append((img_path,self.class_to_idx,1))
+                    print(f"takes all sample class {class_name}")
+                elif self.type_class=="all":
+                    class_path = os.path.join(root_dir,class_name,"train","good")
+                    if not os.path.isdir(class_path):
+                        continue
+                    img_paths=glob.glob(os.path.join(class_path, "*.png"))
+                    
+                    self.classes.append(class_name)
+                    
+                    for img_path in tqdm(img_paths,desc=f"Loading {class_name}", leave=False):
+                        self.samples.append((img_path,self.class_to_idx,1))
+                    
+                self.class_to_idx+=1
         elif self.mode=='test':
             for class_name in tqdm(os.listdir(root_dir),desc="Classes"):
+                if self.type_class==class_name:
+                    class_path=os.path.join(root_dir,class_name,"test")
+                    path_ground_truth=os.path.join(root_dir,class_name,"ground_truth")
                 
-                class_path=os.path.join(root_dir,class_name,"test")
-                path_ground_truth=os.path.join(root_dir,class_name,"ground_truth")
-                
-                if not os.path.isdir(class_path):
-                    continue
-                list_path=[img_modified_path for img_modified_path in os.listdir(class_path)]
-            
-                if class_name not in self.class_to_idx:
-                     self.class_to_idx[class_name]=len(self.class_to_idx)
+                    if not os.path.isdir(class_path):
+                        continue
+                    list_path=[img_modified_path for img_modified_path in os.listdir(class_path)]
+    
                     
-                for path_test_img in list_path:
+                    for path_test_img in list_path:
+                        img_paths=glob.glob(os.path.join(class_path,path_test_img,"*.png"))
+                        if path_test_img!="good":
+                            img_ground_truth=glob.glob(os.path.join(path_ground_truth,path_test_img,"*.png"))
+                            for img_path in range(0,len(img_paths)):
+                                self.samples.append((img_paths[img_path],img_ground_truth[img_path],self.class_to_idx,0))
+                        elif path_test_img=="good":
+                            for img_path in range(0,len(img_paths)):
+                                self.samples.append((img_paths[img_path],None,self.class_to_idx,1))
+                   
+                elif self.type_class=="all":
+                    class_path=os.path.join(root_dir,class_name,"test")
+                    path_ground_truth=os.path.join(root_dir,class_name,"ground_truth")
                     
-                    img_paths=glob.glob(os.path.join(class_path,path_test_img,"*.png"))
-                    if path_test_img!="good":
-                        img_ground_truth=glob.glob(os.path.join(path_ground_truth,path_test_img,"*.png"))
-                        for img_path in range(0,len(img_paths)):
-                            self.samples.append((img_paths[img_path],img_ground_truth[img_path],self.class_to_idx[class_name],0))
-                    elif path_test_img=="good":
-                        for img_path in range(0,len(img_paths)):
-                            self.samples.append((img_paths[img_path],None,self.class_to_idx[class_name],1))
-                            
-                        
+                    if not os.path.isdir(class_path):
+                        continue
+                    list_path=[img_modified_path for img_modified_path in os.listdir(class_path)]
+                    
+                    self.classes.append(class_name)
+                    
+                    for path_test_img in list_path:
+                        img_paths=glob.glob(os.path.join(class_path,path_test_img,"*.png"))
+                        if path_test_img!="good":
+                            img_ground_truth=glob.glob(os.path.join(path_ground_truth,path_test_img,"*.png"))
+                            for img_path in range(0,len(img_paths)):
+                                self.samples.append((img_paths[img_path],img_ground_truth[img_path],self.class_to_idx,0))
+                        elif path_test_img=="good":
+                            for img_path in range(0,len(img_paths)):
+                                self.samples.append((img_paths[img_path],None,self.class_to_idx,1))
+                self.class_to_idx+=1
         else:
             assert("error of parameter mode!=train and mode!=test")
             
@@ -77,8 +104,8 @@ class Dataset_MVTEC_AD(Dataset):
             raise e
         if self.transform:
             img=self.transform(img)
-        #if self.augment:
-            #img=apply_random_augmentation(img,self.aug_prob)
+        if self.augment:
+            img=apply_random_augmentation(img,self.aug_prob)
         return img,label,normal_img
 
 
