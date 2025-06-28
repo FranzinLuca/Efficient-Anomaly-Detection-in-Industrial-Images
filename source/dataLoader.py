@@ -10,7 +10,6 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 def load_train_paths(main_folder, class_selected=None):
-    # This function is well-written, no changes needed.
     img_train_paths = []
     try:
         if class_selected:
@@ -57,7 +56,7 @@ def load_test_paths(main_folder, class_selected=None):
 
     except FileNotFoundError:
         logging.error(f"Main folder not found: {main_folder}")
-        return [], [], set() # <<< REFINEMENT: Return empty set on error
+        return [], [], set() 
 
     extra_test_folders = set()
 
@@ -83,7 +82,6 @@ def load_test_paths(main_folder, class_selected=None):
         for subfolder_name in sorted(list(test_subfolders)):
             current_test_path = os.path.join(test_dir, subfolder_name)
             try:
-                # <<< REFINEMENT: Sort file lists to ensure correct image-mask pairing >>>
                 image_files = sorted([f for f in os.listdir(current_test_path) if os.path.isfile(os.path.join(current_test_path, f))])
                 test_image_paths.extend([os.path.join(current_test_path, img) for img in image_files])
                 
@@ -91,10 +89,8 @@ def load_test_paths(main_folder, class_selected=None):
                     gt_image_paths.extend([None] * len(image_files))
                 else:
                     current_gt_path = os.path.join(gt_dir, subfolder_name)
-                    # <<< REFINEMENT: Sort ground truth files as well >>>
                     gt_files = sorted([f for f in os.listdir(current_gt_path) if os.path.isfile(os.path.join(current_gt_path, f))])
                     
-                    # <<< REFINEMENT: Add a check for mismatched file counts >>>
                     if len(image_files) != len(gt_files):
                         logging.warning(f"Mismatch in file count for '{subfolder_name}': {len(image_files)} test images vs {len(gt_files)} ground truth masks. Skipping ground truth for this folder.")
                         gt_image_paths.extend([None] * len(image_files)) # Add None to avoid crashing
@@ -109,7 +105,6 @@ def load_test_paths(main_folder, class_selected=None):
 
 
 class Img_Dataset(Dataset):
-    # This class is well-written, no changes needed.
     def __init__(self, image_paths, ground_truth_paths=None, transform=None, good_fld=None):
         self.paths = image_paths
         self.ground_truth_paths = ground_truth_paths if ground_truth_paths is not None else []
@@ -150,14 +145,12 @@ def load_dataset(main_path, transform_train=None, transform_test=None, batch_siz
     train_paths = load_train_paths(main_path, class_selected=class_selected)
     test_paths, gt_paths, gd_folders = load_test_paths(main_path, class_selected=class_selected)
 
-    # <<< REFINEMENT: Make the identification of the 'good' folder more robust >>>
     good_folder = None
     if len(gd_folders) == 1:
         good_folder = list(gd_folders)[0]
         logging.info(f"Identified '{good_folder}' as the normal sample folder.")
     elif len(gd_folders) > 1:
         logging.warning(f"Found multiple folders without ground truth: {gd_folders}. Cannot determine the 'good' folder. Labels for test set may be incorrect.")
-        # Optionally, you could pick one, e.g., 'good' if it exists in the set
         if 'good' in gd_folders:
              good_folder = 'good'
              logging.info("Defaulting to 'good' as the normal sample folder.")
