@@ -132,11 +132,11 @@ class Img_Dataset(Dataset):
             img=self.transform(img)
 
         if self.good_folder == None:
-            label = 1
-        elif self.good_folder in path_string:
-            label = 1
-        else:
             label = 0
+        elif self.good_folder in path_string:
+            label = 0
+        else:
+            label = 1
 
         gt_path = self.ground_truth_paths[i] if self.ground_truth_paths and i < len(self.ground_truth_paths) else None
 
