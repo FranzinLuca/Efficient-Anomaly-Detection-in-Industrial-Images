@@ -9,38 +9,30 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-def load_train_paths(main_folder, class_selected=None):                                    
+def load_train_paths(main_folder, class_selected=None):
+    # This function is well-written, no changes needed.
     img_train_paths = []
     try:
-        # Determine which subfolders to process
         if class_selected:
-            # If a specific class is selected, only consider that one
             class_path = os.path.join(main_folder, class_selected)
             subfolders = [class_selected] if os.path.isdir(class_path) else []
             if not subfolders:
                 logging.warning(f"Selected class folder '{class_selected}' not found in '{main_folder}'.")
         else:
-            # Otherwise, get all actual directories in the main folder
             subfolders = [d.name for d in os.scandir(main_folder) if d.is_dir()]
 
-        # Iterate through the selected class folders
         for class_folder in subfolders:
             train_folder = os.path.join(main_folder, class_folder, 'train')
-
-            # Check if the 'train' subdirectory exists before trying to access it
             if not os.path.isdir(train_folder):
                 logging.info(f"Skipping '{class_folder}': 'train' directory not found.")
                 continue
 
-            # Iterate through the subdirectories within the 'train' folder (e.g., 'good', 'bad')
             for item in os.scandir(train_folder):
                 if item.is_dir():
                     image_folder = item.path
                     try:
-                        # Find all files within the image folder
                         for img_file in os.listdir(image_folder):
                             full_path = os.path.join(image_folder, img_file)
-                            # Add a check to ensure we are only adding files, not nested directories
                             if os.path.isfile(full_path):
                                 img_train_paths.append(full_path)
                     except FileNotFoundError:
@@ -48,7 +40,7 @@ def load_train_paths(main_folder, class_selected=None):
 
     except FileNotFoundError:
         logging.error(f"Main folder not found: {main_folder}")
-        return [] # Return an empty list if the main directory doesn't exist
+        return []
 
     return img_train_paths
 
@@ -56,7 +48,6 @@ def load_test_paths(main_folder, class_selected=None):
     test_image_paths = []
     gt_image_paths = []
     try:
-        # Determine which top-level class folders to process
         if class_selected:
             subfolders = [class_selected] if os.path.isdir(os.path.join(main_folder, class_selected)) else []
             if not subfolders:
@@ -66,57 +57,60 @@ def load_test_paths(main_folder, class_selected=None):
 
     except FileNotFoundError:
         logging.error(f"Main folder not found: {main_folder}")
-        return [], []
+        return [], [], set() # <<< REFINEMENT: Return empty set on error
 
-    # Process each class folder (e.g., 'wood', 'carpet')
+    extra_test_folders = set()
+
     for class_folder in subfolders:
         test_dir = os.path.join(main_folder, class_folder, 'test')
         gt_dir = os.path.join(main_folder, class_folder, 'ground_truth')
 
-        # Get subfolder names for test and ground_truth, if they exist
         try:
             test_subfolders = {d.name for d in os.scandir(test_dir) if d.is_dir()}
         except FileNotFoundError:
             logging.warning(f"Skipping class '{class_folder}': 'test' directory not found.")
-            continue # Move to the next class_folder
+            continue
 
         try:
             gt_subfolders = {d.name for d in os.scandir(gt_dir) if d.is_dir()}
         except FileNotFoundError:
-            gt_subfolders = set() # Assume no ground truth folders if the directory is missing
+            gt_subfolders = set()
             logging.info(f"Class '{class_folder}': 'ground_truth' directory not found.")
 
-        # Find subfolders that are in 'test' but NOT in 'ground_truth'
-        extra_test_folders = test_subfolders - gt_subfolders
+        class_extra_folders = test_subfolders - gt_subfolders
+        extra_test_folders.update(class_extra_folders)
 
-        # Process each subfolder found in the test directory (e.g., 'good', 'bad')
-        for subfolder_name in sorted(list(test_subfolders)): # sorted for deterministic order
+        for subfolder_name in sorted(list(test_subfolders)):
             current_test_path = os.path.join(test_dir, subfolder_name)
-            
             try:
-                # Get all image file paths from the current test subfolder
-                image_files = [f for f in os.listdir(current_test_path) if os.path.isfile(os.path.join(current_test_path, f))]
+                # <<< REFINEMENT: Sort file lists to ensure correct image-mask pairing >>>
+                image_files = sorted([f for f in os.listdir(current_test_path) if os.path.isfile(os.path.join(current_test_path, f))])
                 test_image_paths.extend([os.path.join(current_test_path, img) for img in image_files])
                 
-                # --- THIS IS THE CORRECTED CONDITIONAL ---
-                # Check if this subfolder is one of the "extra" ones
-                if subfolder_name in extra_test_folders:
-                    # If so, add None placeholders for the ground truth paths
+                if subfolder_name in class_extra_folders:
                     gt_image_paths.extend([None] * len(image_files))
                 else:
-                    # Otherwise, get the corresponding ground truth image paths
                     current_gt_path = os.path.join(gt_dir, subfolder_name)
-                    gt_files = [f for f in os.listdir(current_gt_path) if os.path.isfile(os.path.join(current_gt_path, f))]
-                    gt_image_paths.extend([os.path.join(current_gt_path, img) for img in gt_files])
+                    # <<< REFINEMENT: Sort ground truth files as well >>>
+                    gt_files = sorted([f for f in os.listdir(current_gt_path) if os.path.isfile(os.path.join(current_gt_path, f))])
+                    
+                    # <<< REFINEMENT: Add a check for mismatched file counts >>>
+                    if len(image_files) != len(gt_files):
+                        logging.warning(f"Mismatch in file count for '{subfolder_name}': {len(image_files)} test images vs {len(gt_files)} ground truth masks. Skipping ground truth for this folder.")
+                        gt_image_paths.extend([None] * len(image_files)) # Add None to avoid crashing
+                    else:
+                        gt_image_paths.extend([os.path.join(current_gt_path, img) for img in gt_files])
 
             except FileNotFoundError:
                 logging.warning(f"Could not access directory or contents for '{current_test_path}'")
-                continue # Skip this subfolder and move to the next
+                continue
 
     return test_image_paths, gt_image_paths, extra_test_folders
 
+
 class Img_Dataset(Dataset):
-    def __init__(self, image_paths,ground_truth_paths=None, transform = None, good_fld=None):
+    # This class is well-written, no changes needed.
+    def __init__(self, image_paths, ground_truth_paths=None, transform=None, good_fld=None):
         self.paths = image_paths
         self.ground_truth_paths = ground_truth_paths if ground_truth_paths is not None else []
         self.transform = transform
@@ -129,9 +123,9 @@ class Img_Dataset(Dataset):
         path_string = self.paths[i]
         img = Image.open(path_string).convert('RGB')
         if self.transform:
-            img=self.transform(img)
+            img = self.transform(img)
 
-        if self.good_folder == None:
+        if self.good_folder is None: # For training set where only good samples are used
             label = 0
         elif self.good_folder in path_string:
             label = 0
@@ -141,22 +135,35 @@ class Img_Dataset(Dataset):
         gt_path = self.ground_truth_paths[i] if self.ground_truth_paths and i < len(self.ground_truth_paths) else None
 
         if gt_path is not None:
-            img_gt = Image.open(gt_path).convert('L')
+            img_gt = Image.open(gt_path).convert('L') # Greyscale mask
             if self.transform:
-                img_gt=self.transform(img_gt)
-                img_gt = (img_gt > 0.5).long()
+                img_gt = self.transform(img_gt)
+                img_gt = (img_gt > 0.5).long() # Binarize the mask
         else:
+            # Create a placeholder zero tensor if no ground truth
             _, H, W = img.shape
             img_gt = torch.zeros((1, H, W))
         
         return img, label, img_gt
 
-def load_dataset(main_path, transform_train=None,transform_test=None, batch_size=32, pin_memory=True, class_selected=None):
+def load_dataset(main_path, transform_train=None, transform_test=None, batch_size=32, pin_memory=True, class_selected=None):
     train_paths = load_train_paths(main_path, class_selected=class_selected)
-    test_paths, gt_paths, gd_folder = load_test_paths(main_path,  class_selected=class_selected)
+    test_paths, gt_paths, gd_folders = load_test_paths(main_path, class_selected=class_selected)
 
-    good_folder = list(gd_folder)[0]
-    
+    # <<< REFINEMENT: Make the identification of the 'good' folder more robust >>>
+    good_folder = None
+    if len(gd_folders) == 1:
+        good_folder = list(gd_folders)[0]
+        logging.info(f"Identified '{good_folder}' as the normal sample folder.")
+    elif len(gd_folders) > 1:
+        logging.warning(f"Found multiple folders without ground truth: {gd_folders}. Cannot determine the 'good' folder. Labels for test set may be incorrect.")
+        # Optionally, you could pick one, e.g., 'good' if it exists in the set
+        if 'good' in gd_folders:
+             good_folder = 'good'
+             logging.info("Defaulting to 'good' as the normal sample folder.")
+    else:
+        logging.warning("Could not find a 'good' folder (a folder in 'test' that is not in 'ground_truth'). Labels for test set may be incorrect.")
+
     if transform_train is None:
         transform_train = transforms.Compose([
             transforms.Resize((512, 512)),
@@ -169,9 +176,13 @@ def load_dataset(main_path, transform_train=None,transform_test=None, batch_size
             transforms.ToTensor(),
         ])
     
-    dataset_train = Img_Dataset(train_paths, transform=transform_train)
+    # For training, we don't need to distinguish good/bad, as we assume all are good
+    dataset_train = Img_Dataset(train_paths, transform=transform_train, good_fld=None)
+    
+    # For testing, we provide the identified 'good_folder' to generate correct labels
     dataset_test = Img_Dataset(test_paths, transform=transform_test, ground_truth_paths=gt_paths, good_fld=good_folder)
 
     train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
     test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
+    
     return train_dataloader, test_dataloader
