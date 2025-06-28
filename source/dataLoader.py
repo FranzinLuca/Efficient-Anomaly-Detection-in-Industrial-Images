@@ -144,7 +144,7 @@ class Img_Dataset(Dataset):
             img_gt = Image.open(gt_path).convert('L')
             if self.transform:
                 img_gt=self.transform(img_gt)
-                mask = (mask > 0.5).long()
+                img_gt = (mask > 0.5).long()
         else:
             _, H, W = img.shape
             img_gt = torch.zeros((1, H, W))
