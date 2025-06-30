@@ -137,7 +137,7 @@ class Img_Dataset(Dataset):
         else:
             # Create a placeholder zero tensor if no ground truth
             _, H, W = img.shape
-            img_gt = torch.zeros((1, H, W))
+            img_gt = torch.zeros((1, H, W), dtype=torch.long)
         
         return img, label, img_gt
 
