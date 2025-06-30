@@ -141,7 +141,7 @@ class Img_Dataset(Dataset):
         
         return img, label, img_gt
 
-def load_dataset(main_path, transform_train=None, transform_test=None, batch_size=32, pin_memory=True, class_selected=None):
+def load_dataset(main_path, transform_train=None, transform_test=None, batch_size=32, pin_memory=True, class_selected=None, num_workers=4):
     train_paths = load_train_paths(main_path, class_selected=class_selected)
     test_paths, gt_paths, gd_folders = load_test_paths(main_path, class_selected=class_selected)
 
@@ -175,7 +175,7 @@ def load_dataset(main_path, transform_train=None, transform_test=None, batch_siz
     # For testing, we provide the identified 'good_folder' to generate correct labels
     dataset_test = Img_Dataset(test_paths, transform=transform_test, ground_truth_paths=gt_paths, good_fld=good_folder)
 
-    train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
-    test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
+    train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory, num_workers=num_workers)
+    test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory, num_workers=num_workers)
     
     return train_dataloader, test_dataloader
