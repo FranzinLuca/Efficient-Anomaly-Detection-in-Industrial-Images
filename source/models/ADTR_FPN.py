@@ -279,7 +279,6 @@ class ADTR_FPN(nn.Module):
         super(ADTR_FPN, self).__init__()
         self.embedding = AdtrEmbedding()
         self.reconstruction = AdtrReconstruction(in_channels, transformer_dim, use_dyt=use_dyt)
-        print("Initialized Full ADTR Model.")
 
     def forward(self, x: torch.Tensor):
         original_features = self.embedding(x)

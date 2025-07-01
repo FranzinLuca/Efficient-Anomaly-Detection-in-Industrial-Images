@@ -5,8 +5,8 @@ MODEL = "ADTR_FPN" # ADTR_FPN, ADTR
 CHECKPOINT_DIR = f"checkpoints/{MODEL}"
 IMAGE_FOLDER = f"images/{MODEL}"
 RESULT_FOLDER = f"results/{MODEL}"
-TRAIN_MODEL = False  # Set to False if you want to use a pre-trained model
-LOAD_WEIGHTS = True  # Set to False if you want to train from scratch
+TRAIN_MODEL = True  # Set to False if you want to use a pre-trained model
+LOAD_WEIGHTS = False  # Set to False if you want to train from scratch
 
 # --- Data configurations ---
 DOWNLOAD_DATASET = True  # Set to False if you have already downloaded the dataset
@@ -25,9 +25,7 @@ BTAD_KAGGLE_DOWNLOAD_URL = "thtuan/btad-beantech-anomaly-detection"
 #  "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
 #  "transistor", "wood", "zipper"
 MVTEC_CATEGORIES = [
-    "bottle", "cable", "capsule", "carpet", "grid", "hazelnut",
-    "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
-    "transistor", "wood", "zipper"
+    "bottle", "wood"
     ]
 
 # All categories in BTAD dataset
@@ -36,11 +34,11 @@ BTAD_CATEGORIES = ["01", "02", "03"]
 
 # --- Training configurations ---
 IMG_SIZE = (256, 256)
-BATCH_SIZE = 2
-EPOCHS = 1
+BATCH_SIZE = 4
+EPOCHS = 10
 LR = 1e-4
 WEIGHT_DECAY = 1e-5
-USE_DYT = True  # Use Dynamic Tensor for ADTR
+USE_DYT = False  # Use Dynamic Tensor for ADTR
 
 # -- Runtime Settings --
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -175,7 +175,7 @@ def plot_all_categories_with_images(csv_path, img_to_plot=[], save_path=None):
 
     fig.suptitle("Model Performance Summary by Category", fontsize=20, y=1.0)
 
-    metrics_to_plot = ['Image-AUROC', 'Pixel-AUROC', 'Precision', 'F1-Score']
+    metrics_to_plot = ['Image-AUROC', 'Pixel-AUROC', 'Accuracy', 'F1-Score']
 
     for index, row in df.iterrows():
         category_name = row['Category']

@@ -66,7 +66,7 @@ def evaluate_model(model, dataloader, device):
     predicted_labels = [1 if score >= optimal_threshold else 0 for score in all_img_scores]
     
     # Calculate precision and F1 score
-    precision = accuracy_score(all_img_labels, predicted_labels)
+    accuracy = accuracy_score(all_img_labels, predicted_labels)
     f1 = f1_score(all_img_labels, predicted_labels)
     
-    return image_auroc, pixel_auroc, precision, f1
+    return image_auroc, pixel_auroc, accuracy, f1
