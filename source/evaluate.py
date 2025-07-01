@@ -3,7 +3,7 @@ Evaluate the model on the validation/test dataset.
 This function computes the image-level and pixel-level AUROC, precision, and F1 score.
 """
 
-from sklearn.metrics import roc_auc_score, roc_curve, precision_score, f1_score
+from sklearn.metrics import roc_auc_score, roc_curve, accuracy_score, f1_score
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -66,7 +66,7 @@ def evaluate_model(model, dataloader, device):
     predicted_labels = [1 if score >= optimal_threshold else 0 for score in all_img_scores]
     
     # Calculate precision and F1 score
-    precision = precision_score(all_img_labels, predicted_labels)
+    precision = accuracy_score(all_img_labels, predicted_labels)
     f1 = f1_score(all_img_labels, predicted_labels)
     
     return image_auroc, pixel_auroc, precision, f1
