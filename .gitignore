@@ -1,1 +1,4 @@
-source/__pycache__/*.pyc
+source/__pycache__
+.venv
+__pycache__
+checkpoints
