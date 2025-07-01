@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import matplotlib.image as mpimg
-import csv
+import random
 
 def save_visualizations(model, data_loader, category, config):
     """
@@ -121,10 +121,10 @@ def save_results_to_csv(model_name, category_name, image_auroc, pixel_auroc, acc
     file_path = os.path.join(save_dir, f"{model_name}_results.csv")
     new_row_data = {
         'Category': category_name,
-        'Image-AUROC': f"{image_auroc:.4f}",
-        'Pixel-AUROC': f"{pixel_auroc:.4f}",
-        'Accuracy': f"{accuracy:.4f}",
-        'F1-Score': f"{f1:.4f}",
+        'Image-AUROC': image_auroc,
+        'Pixel-AUROC': pixel_auroc,
+        'Accuracy': accuracy,
+        'F1-Score': f1,
         'Image Paths': "; ".join(path_images)
     }
     
@@ -149,7 +149,7 @@ def save_results_to_csv(model_name, category_name, image_auroc, pixel_auroc, acc
         print(f"Creating new results file for category '{category_name}' at '{file_path}'")
 
     # Save the modified or new DataFrame back to the CSV
-    df.to_csv(file_path, index=False)
+    df.to_csv(file_path, index=False, float_format='%.4f')
     
     
 def plot_all_categories_with_images(csv_path, img_to_plot=[], save_path=None):
@@ -209,3 +209,42 @@ def plot_all_categories_with_images(csv_path, img_to_plot=[], save_path=None):
         print(f"Grid plot saved to '{save_path}'")
 
     plt.show()
+
+class CutPaste:
+    """
+    Applies the CutPaste augmentation.
+    """
+    def __init__(self, p=0.5):
+        self.p = p
+
+    def __call__(self, img):
+        if random.random() < self.p:
+            # Image dimensions
+            width, height = img.size
+            
+            # Determine a random patch size
+            s = min(width, height)
+            patch_h = random.randint(int(0.05 * s), int(0.20 * s))
+            patch_w = random.randint(int(0.05 * s), int(0.20 * s))
+
+            # Get random coordinates for cutting
+            cut_x = random.randint(0, width - patch_w)
+            cut_y = random.randint(0, height - patch_h)
+
+            # Crop the patch
+            box_cut = (cut_x, cut_y, cut_x + patch_w, cut_y + patch_h)
+            patch = img.crop(box_cut)
+
+            # Augment the patch
+            patch = patch.rotate(random.randint(-45, 45), expand=True)
+            patch = patch.convert("RGBA")
+            
+            # Get random coordinates for pasting
+            paste_x = random.randint(0, width - patch.width)
+            paste_y = random.randint(0, height - patch.height)
+
+            # Paste the patch onto a copy of the image
+            augmented_image = img.copy()
+            augmented_image.paste(patch, (paste_x, paste_y), mask=patch)
+            return augmented_image
+        return img

@@ -25,7 +25,7 @@ BTAD_KAGGLE_DOWNLOAD_URL = "thtuan/btad-beantech-anomaly-detection"
 #  "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
 #  "transistor", "wood", "zipper"
 MVTEC_CATEGORIES = [
-    "bottle", "wood"
+    "bottle", "cable", "capsule", "carpet"
     ]
 
 # All categories in BTAD dataset
@@ -35,7 +35,7 @@ BTAD_CATEGORIES = ["01", "02", "03"]
 # --- Training configurations ---
 IMG_SIZE = (256, 256)
 BATCH_SIZE = 4
-EPOCHS = 10
+EPOCHS = 100
 LR = 1e-4
 WEIGHT_DECAY = 1e-5
 USE_DYT = False  # Use Dynamic Tensor for ADTR

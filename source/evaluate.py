@@ -37,7 +37,7 @@ def evaluate_model(model, dataloader, device):
             anomaly_map = model.get_anomaly_map(original_features, reconstructed_features)
             
             # Apply Gaussian blur to the anomaly map
-            anomaly_map = gaussian_blur(anomaly_map, kernel_size=9, sigma=6)
+            anomaly_map = gaussian_blur(anomaly_map, kernel_size=7, sigma=1.5)
             
             # Upsample anomaly map to image size
             anomaly_map_resized = F.interpolate(anomaly_map, size=images.shape[2:], mode='bilinear', align_corners=False)

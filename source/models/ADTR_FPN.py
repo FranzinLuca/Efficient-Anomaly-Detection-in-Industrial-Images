@@ -100,6 +100,7 @@ class TransformerEncoderLayer(nn.Module):
     """
     def __init__(self, d_model, n_head, dim_feedforward=1024, use_dyt=False):
         super().__init__()
+        self.pos_embedding = nn.Parameter(torch.randn(1, 256, d_model))
         self.ln1 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.mha = MultiHeadAttention(d_model, n_head)
         self.ln2 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
@@ -114,6 +115,7 @@ class TransformerEncoderLayer(nn.Module):
         Args:
             x: Input tensor of shape [batch_size, seq_len, d_model]
         """
+        x = x + self.pos_embedding
         x = x + self.mha(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
@@ -127,6 +129,7 @@ class TransformerDecoderLayer(nn.Module):
     def __init__(self, d_model, n_head, dim_feedforward=1024, use_dyt=False):
         super().__init__()
         self.self_attn = MultiHeadAttention(d_model, n_head)
+        self.pos_embedding = nn.Parameter(torch.randn(1, 256, d_model))
         self.ln1 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.cross_attn = MultiHeadCrossAttention(d_model, n_head)
         self.ln2 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
@@ -143,9 +146,10 @@ class TransformerDecoderLayer(nn.Module):
             x: Input tensor from the previous decoder layer (i.e., query embedding).
             encoder_output: Output tensor from the encoder.
         """
+        x = x + self.pos_embedding
         # Self-attention over the queries. No mask needed for this architecture.
         x = x + self.self_attn(self.ln1(x))
-        # Cross-attention between queries and encoder output
+        # Cross-attention with encoder output
         x = x + self.cross_attn(self.ln2(x), encoder_output)
         # Feed-forward network
         x = x + self.ffn(self.ln3(x))
@@ -234,7 +238,7 @@ class AdtrEmbedding(nn.Module):
 
 class AdtrReconstruction(nn.Module):
     """Reconstruction stage of ADTR using a Transformer."""
-    def __init__(self, in_channels=256*3, transformer_dim=256, n_heads=16, n_encoder_layers=8, n_decoder_layers=8, dim_feedforward=1024, use_dyt=False):
+    def __init__(self, in_channels=256*3, transformer_dim=256, n_heads=8, n_encoder_layers=4, n_decoder_layers=4, dim_feedforward=1024, use_dyt=False):
         super(AdtrReconstruction, self).__init__()
         self.transformer_dim = transformer_dim
         self.input_proj = nn.Conv2d(in_channels, transformer_dim, kernel_size=1)
@@ -246,8 +250,6 @@ class AdtrReconstruction(nn.Module):
             dim_feedforward=dim_feedforward,
             use_dyt=use_dyt
         )
-        # Initialize embeddings for a common feature map size
-        self.pos_embedding = nn.Parameter(torch.randn(1, 256, transformer_dim))
         # Aux query
         self.query_embedding = nn.Parameter(torch.randn(1, 256, transformer_dim))
         self.output_proj = nn.Conv2d(transformer_dim, in_channels, kernel_size=1)
@@ -257,19 +259,7 @@ class AdtrReconstruction(nn.Module):
         N, C, H, W = projected_x.shape
         flattened_x = projected_x.flatten(2).permute(0, 2, 1)
         
-        # Dynamically resize positional embeddings if needed
-        if self.pos_embedding.shape[1] != H * W:
-             pos_embedding_resized = F.interpolate(self.pos_embedding.permute(0, 2, 1), size=H*W, mode='linear', align_corners=False).permute(0, 2, 1)
-             query_embedding_resized = F.interpolate(self.query_embedding.permute(0, 2, 1), size=H*W, mode='linear', align_corners=False).permute(0, 2, 1)
-        else:
-            pos_embedding_resized = self.pos_embedding
-            query_embedding_resized = self.query_embedding
-            
-        pos_embedding = pos_embedding_resized.expand(N, -1, -1)
-        query_embedding = query_embedding_resized.expand(N, -1, -1)
-        
-        input_with_pos = flattened_x + pos_embedding
-        reconstructed_tokens = self.transformer(src=input_with_pos, tgt=query_embedding)
+        reconstructed_tokens = self.transformer(src=flattened_x, tgt=self.query_embedding)
         reconstructed_feature_map = reconstructed_tokens.permute(0, 2, 1).reshape(N, C, H, W)
         return self.output_proj(reconstructed_feature_map)
 
