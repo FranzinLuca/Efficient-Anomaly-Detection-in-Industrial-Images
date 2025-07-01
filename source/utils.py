@@ -102,7 +102,7 @@ def save_visualizations(model, data_loader, category, config):
     
     return path_images
 
-def save_results_to_csv(model_name, category_name, image_auroc, pixel_auroc, precision, f1, path_images, save_dir):
+def save_results_to_csv(model_name, category_name, image_auroc, pixel_auroc, accuracy, f1, path_images, save_dir):
     """
     Saves experiment results to a model-specific CSV file.
 
@@ -123,7 +123,7 @@ def save_results_to_csv(model_name, category_name, image_auroc, pixel_auroc, pre
         'Category': category_name,
         'Image-AUROC': f"{image_auroc:.4f}",
         'Pixel-AUROC': f"{pixel_auroc:.4f}",
-        'Precision': f"{precision:.4f}",
+        'Accuracy': f"{accuracy:.4f}",
         'F1-Score': f"{f1:.4f}",
         'Image Paths': "; ".join(path_images)
     }
