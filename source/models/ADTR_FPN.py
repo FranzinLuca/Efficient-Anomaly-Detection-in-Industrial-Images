@@ -98,9 +98,9 @@ class TransformerEncoderLayer(nn.Module):
     Positional encoding is handled outside this module.
     use_dyt: If True, use DyT for layer normalization.
     """
-    def __init__(self, d_model, n_head, dim_feedforward=1024, use_dyt=False):
+    def __init__(self, d_model, n_head, sequence_length, dim_feedforward=1024, use_dyt=False):
         super().__init__()
-        self.pos_embedding = nn.Parameter(torch.randn(1, 256, d_model))
+        self.pos_embedding = nn.Parameter(torch.randn(1, sequence_length, d_model))
         self.ln1 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.mha = MultiHeadAttention(d_model, n_head)
         self.ln2 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
@@ -126,10 +126,10 @@ class TransformerDecoderLayer(nn.Module):
     Positional encoding is handled outside this module.
     use_dyt: If True, use DyT for layer normalization.
     """
-    def __init__(self, d_model, n_head, dim_feedforward=1024, use_dyt=False):
+    def __init__(self, d_model, n_head, sequence_length, dim_feedforward=1024, use_dyt=False):
         super().__init__()
         self.self_attn = MultiHeadAttention(d_model, n_head)
-        self.pos_embedding = nn.Parameter(torch.randn(1, 256, d_model))
+        self.pos_embedding = nn.Parameter(torch.randn(1, sequence_length, d_model))
         self.ln1 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.cross_attn = MultiHeadCrossAttention(d_model, n_head)
         self.ln2 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
@@ -160,14 +160,14 @@ class Transformer(nn.Module):
     A complete Transformer model with an encoder-decoder architecture,
     adapted for the ADTR framework.
     """
-    def __init__(self, d_model, n_head, n_encoder_layers, n_decoder_layers, dim_feedforward, use_dyt=False):
+    def __init__(self, d_model, n_head, n_encoder_layers, n_decoder_layers, sequence_length, dim_feedforward, use_dyt=False):
         super().__init__()
         self.encoder_layers = nn.ModuleList([
-            TransformerEncoderLayer(d_model, n_head, dim_feedforward, use_dyt=use_dyt)
+            TransformerEncoderLayer(d_model, n_head, sequence_length, dim_feedforward, use_dyt=use_dyt)
             for _ in range(n_encoder_layers)
         ])
         self.decoder_layers = nn.ModuleList([
-            TransformerDecoderLayer(d_model, n_head, dim_feedforward, use_dyt=use_dyt)
+            TransformerDecoderLayer(d_model, n_head, sequence_length, dim_feedforward, use_dyt=use_dyt)
             for _ in range(n_decoder_layers)
         ])
 
@@ -224,7 +224,7 @@ class AdtrEmbedding(nn.Module):
             param.requires_grad = False
 
         backbone_out_channels = self.backbone.feature_info.channels()
-        self.fpn_out_channels = 256
+        self.fpn_out_channels = 512
 
         self.fpn = FPN(in_channels_list=backbone_out_channels, out_channels=self.fpn_out_channels)
             
@@ -238,7 +238,7 @@ class AdtrEmbedding(nn.Module):
 
 class AdtrReconstruction(nn.Module):
     """Reconstruction stage of ADTR using a Transformer."""
-    def __init__(self, in_channels=256*3, transformer_dim=256, n_heads=8, n_encoder_layers=4, n_decoder_layers=4, dim_feedforward=1024, use_dyt=False):
+    def __init__(self, in_channels=512*3, transformer_dim=512, n_heads=16, n_encoder_layers=6, n_decoder_layers=6, dim_feedforward=2048, use_dyt=False, sequence_length=256):
         super(AdtrReconstruction, self).__init__()
         self.transformer_dim = transformer_dim
         self.input_proj = nn.Conv2d(in_channels, transformer_dim, kernel_size=1)
@@ -248,10 +248,11 @@ class AdtrReconstruction(nn.Module):
             n_encoder_layers=n_encoder_layers,
             n_decoder_layers=n_decoder_layers,
             dim_feedforward=dim_feedforward,
-            use_dyt=use_dyt
+            use_dyt=use_dyt,
+            sequence_length=sequence_length
         )
         # Aux query
-        self.query_embedding = nn.Parameter(torch.randn(1, 256, transformer_dim))
+        self.query_embedding = nn.Parameter(torch.randn(1, sequence_length, transformer_dim))
         self.output_proj = nn.Conv2d(transformer_dim, in_channels, kernel_size=1)
         
     def forward(self, x):
@@ -259,16 +260,18 @@ class AdtrReconstruction(nn.Module):
         N, C, H, W = projected_x.shape
         flattened_x = projected_x.flatten(2).permute(0, 2, 1)
         
-        reconstructed_tokens = self.transformer(src=flattened_x, tgt=self.query_embedding)
+        reconstructed_tokens = self.transformer(src=flattened_x, tgt=self.query_embedding.expand(N, -1, -1))
         reconstructed_feature_map = reconstructed_tokens.permute(0, 2, 1).reshape(N, C, H, W)
         return self.output_proj(reconstructed_feature_map)
 
 class ADTR_FPN(nn.Module):
     """The complete ADTR model."""
-    def __init__(self, in_channels=256*3, transformer_dim=256, use_dyt=False):
+    def __init__(self, in_channels=512*3, transformer_dim=512, use_dyt=False, img_size=512):
         super(ADTR_FPN, self).__init__()
         self.embedding = AdtrEmbedding()
-        self.reconstruction = AdtrReconstruction(in_channels, transformer_dim, use_dyt=use_dyt)
+        sequence_length = (img_size // 16) ** 2
+
+        self.reconstruction = AdtrReconstruction(in_channels, transformer_dim, use_dyt=use_dyt, sequence_length=sequence_length, dim_feedforward=4*transformer_dim)
 
     def forward(self, x: torch.Tensor):
         original_features = self.embedding(x)

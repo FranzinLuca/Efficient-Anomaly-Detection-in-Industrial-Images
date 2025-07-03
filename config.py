@@ -1,10 +1,12 @@
 import torch
 
 # -- Model Configuration ---
+USE_DYT = True  # Use Dynamic Tensor for ADTR
 MODEL = "ADTR_FPN" # ADTR_FPN, ADTR
-CHECKPOINT_DIR = f"checkpoints/{MODEL}"
-IMAGE_FOLDER = f"images/{MODEL}"
-RESULT_FOLDER = f"results/{MODEL}"
+SUBPATH = "DyT" if USE_DYT else "Norm"
+CHECKPOINT_DIR = f"checkpoints/{MODEL}/{SUBPATH}"
+IMAGE_FOLDER = f"images/{MODEL}/{SUBPATH}"
+RESULT_FOLDER = f"results/{MODEL}/{SUBPATH}"
 TRAIN_MODEL = True  # Set to False if you want to use a pre-trained model
 LOAD_WEIGHTS = False  # Set to False if you want to train from scratch
 
@@ -12,7 +14,7 @@ LOAD_WEIGHTS = False  # Set to False if you want to train from scratch
 DOWNLOAD_DATASET = True  # Set to False if you have already downloaded the dataset
 DELETE_CACHE_DATASET = False  # Set to True if you want to delete the cached dataset when the script ends
 
-DATASET_TO_USE = "mvtec" # mvtec, batd
+DATASET_TO_USE = "mvtec" # mvtec, btad
 
 MVTEC_ROOT = f"dataset/mvtec-ad" # if you have downloaded the dataset, set the path here
 MVTEC_KAGGLE_DOWNLOAD_URL = "ipythonx/mvtec-ad"
@@ -25,7 +27,7 @@ BTAD_KAGGLE_DOWNLOAD_URL = "thtuan/btad-beantech-anomaly-detection"
 #  "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
 #  "transistor", "wood", "zipper"
 MVTEC_CATEGORIES = [
-    "bottle", "cable", "capsule", "carpet"
+    "capsule"
     ]
 
 # All categories in BTAD dataset
@@ -33,12 +35,11 @@ MVTEC_CATEGORIES = [
 BTAD_CATEGORIES = ["01", "02", "03"]
 
 # --- Training configurations ---
-IMG_SIZE = (256, 256)
+IMG_SIZE = (512, 512)
 BATCH_SIZE = 4
-EPOCHS = 100
+EPOCHS = 50
 LR = 1e-4
 WEIGHT_DECAY = 1e-5
-USE_DYT = False  # Use Dynamic Tensor for ADTR
 
 # -- Runtime Settings --
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
