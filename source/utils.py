@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import matplotlib.image as mpimg
-import random
+from torchvision.transforms.functional import gaussian_blur
+import config
 
-def save_visualizations(model, data_loader, category, config):
+def save_visualizations(model, data_loader, category):
     """
     Generates and saves 3-column visualizations for anomaly detection results.
     
@@ -51,6 +52,7 @@ def save_visualizations(model, data_loader, category, config):
             original_features, reconstructed_features = model(images)
             anomaly_map = model.get_anomaly_map(original_features, reconstructed_features)
             anomaly_map_resized = F.interpolate(anomaly_map, size=images.shape[2:], mode='bilinear', align_corners=False)
+            anomaly_map_resized = gaussian_blur(anomaly_map_resized, kernel_size=config.KERNEL_SIZE, sigma=config.SIGMA)
 
             # Move data to CPU for plotting
             images_cpu = images.cpu()
@@ -102,7 +104,7 @@ def save_visualizations(model, data_loader, category, config):
     
     return path_images
 
-def save_results_to_csv(model_name, category_name, image_auroc, pixel_auroc, accuracy, f1, path_images, save_dir):
+def save_results_to_csv(category_name, image_auroc, pixel_auroc, pixel_aupr, accuracy, f1, path_images):
     """
     Saves experiment results to a model-specific CSV file.
 
@@ -111,18 +113,21 @@ def save_results_to_csv(model_name, category_name, image_auroc, pixel_auroc, acc
         category_name: The data category being evaluated.
         image_auroc: The image-level AUROC score.
         pixel_auroc: The pixel-level AUROC score.
-        precision: The precision score.
+        pixel_aupr: The pixel-level AUPR score.
+        accuracy: The accuracy score.
         f1: The F1-score.
         path_images: A list of paths to saved visualization images.
         save_dir: The directory where the CSV files will be stored.
     """
-    
+    model_name=config.MODEL
+    save_dir=config.RESULT_FOLDER
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, f"{model_name}_results.csv")
     new_row_data = {
         'Category': category_name,
         'Image-AUROC': image_auroc,
         'Pixel-AUROC': pixel_auroc,
+        'Pixel-AUPR': pixel_aupr,
         'Accuracy': accuracy,
         'F1-Score': f1,
         'Image Paths': "; ".join(path_images)
@@ -175,7 +180,7 @@ def plot_all_categories_with_images(csv_path, img_to_plot=[], save_path=None):
 
     fig.suptitle("Model Performance Summary by Category", fontsize=20, y=1.0)
 
-    metrics_to_plot = ['Image-AUROC', 'Pixel-AUROC', 'Accuracy', 'F1-Score']
+    metrics_to_plot = ['Image-AUROC', 'Pixel-AUROC', 'Pixel-AUPR', 'Accuracy', 'F1-Score']
 
     for index, row in df.iterrows():
         category_name = row['Category']
@@ -209,3 +214,24 @@ def plot_all_categories_with_images(csv_path, img_to_plot=[], save_path=None):
         print(f"Grid plot saved to '{save_path}'")
 
     plt.show()
+
+def create_lr_scheduler(optimizer, num_train_steps, warmup_steps):
+    """Creates a learning rate scheduler with a linear warmup and cosine decay."""
+    
+    # Scheduler for the linear warmup phase
+    warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+        optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_steps
+    )
+    
+    # Scheduler for the cosine decay phase
+    decay_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=(num_train_steps - warmup_steps)
+    )
+    
+    # Chain them together
+    lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+        optimizer,
+        schedulers=[warmup_scheduler, decay_scheduler],
+        milestones=[warmup_steps]
+    )
+    return lr_scheduler

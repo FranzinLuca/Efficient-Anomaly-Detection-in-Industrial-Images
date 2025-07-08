@@ -1,9 +1,10 @@
 import os
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 from PIL import Image
 from torchvision import transforms
 import logging
+import config
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -103,10 +104,11 @@ def load_test_paths(main_folder, class_selected=None):
 
 
 class Img_Dataset(Dataset):
-    def __init__(self, image_paths, ground_truth_paths=None, transform=None, good_fld=None):
+    def __init__(self, image_paths, ground_truth_paths=None, img_transform=None, gt_transform=None, good_fld=None):
         self.paths = image_paths
         self.ground_truth_paths = ground_truth_paths if ground_truth_paths is not None else []
-        self.transform = transform
+        self.img_transform = img_transform
+        self.gt_transform = gt_transform
         self.good_folder = good_fld
         
     def __len__(self):
@@ -115,8 +117,8 @@ class Img_Dataset(Dataset):
     def __getitem__(self, i):
         path_string = self.paths[i]
         img = Image.open(path_string).convert('RGB')
-        if self.transform:
-            img = self.transform(img)
+        if self.img_transform:
+            img = self.img_transform(img)
 
         if self.good_folder is None: # For training set where only good samples are used
             label = 0
@@ -129,8 +131,8 @@ class Img_Dataset(Dataset):
 
         if gt_path is not None:
             img_gt = Image.open(gt_path).convert('L') # Greyscale mask
-            if self.transform:
-                img_gt = self.transform(img_gt)
+            if self.gt_transform:
+                img_gt = self.gt_transform(img_gt)
                 img_gt = (img_gt > 0.5).long() # Binarize the mask
         else:
             # Create a placeholder zero tensor if no ground truth
@@ -139,10 +141,14 @@ class Img_Dataset(Dataset):
         
         return img, label, img_gt
 
-def load_dataset(main_path, transform_train=None, transform_test=None, batch_size=32, pin_memory=True, class_selected=None, num_workers=4):
+def load_dataset(main_path, transform_train=None, transform_test=None, transform_gt=None, pin_memory=True, class_selected=None):
     train_paths = load_train_paths(main_path, class_selected=class_selected)
     test_paths, gt_paths, gd_folders = load_test_paths(main_path, class_selected=class_selected)
 
+    batch_size = config.BATCH_SIZE
+    num_workers = config.NUM_WORKERS
+    val_split = config.VAL_SPLIT
+    
     good_folder = None
     if len(gd_folders) == 1:
         good_folder = list(gd_folders)[0]
@@ -167,13 +173,34 @@ def load_dataset(main_path, transform_train=None, transform_test=None, batch_siz
             transforms.ToTensor(),
         ])
     
+    if transform_gt is None:
+        transform_gt = transform_test
+    
     # For training, we don't need to distinguish good/bad, as we assume all are good
-    dataset_train = Img_Dataset(train_paths, transform=transform_train, good_fld=None)
+    dataset_train_full = Img_Dataset(train_paths, img_transform=transform_train, good_fld=None)
+    
+    if val_split:
+        dataset_size = len(dataset_train_full)
+        val_size = int(dataset_size * val_split)
+        train_size = dataset_size - val_size
+        logging.info(f"Splitting training data: {train_size} for training, {val_size} for validation.")
+        
+        generator = torch.Generator().manual_seed(42)
+        dataset_train, dataset_val = random_split(dataset_train_full, [train_size, val_size], generator=generator)
+        
+        dataset_val.dataset.img_transform = transform_test
+    else:
+        dataset_train = dataset_train_full
+        dataset_val = None
+    
     
     # For testing, we provide the identified 'good_folder' to generate correct labels
-    dataset_test = Img_Dataset(test_paths, transform=transform_test, ground_truth_paths=gt_paths, good_fld=good_folder)
+    dataset_test = Img_Dataset(test_paths, img_transform=transform_test, gt_transform=transform_gt, ground_truth_paths=gt_paths, good_fld=good_folder)
 
     train_dataloader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, pin_memory=pin_memory, num_workers=num_workers)
     test_dataloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, pin_memory=pin_memory, num_workers=num_workers)
-    
-    return train_dataloader, test_dataloader
+    val_dataloader = None
+    if dataset_val:
+        val_dataloader = DataLoader(dataset_val, batch_size=batch_size, shuffle=False, pin_memory=pin_memory, num_workers=num_workers)
+            
+    return train_dataloader, val_dataloader, test_dataloader

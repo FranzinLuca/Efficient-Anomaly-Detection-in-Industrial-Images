@@ -7,13 +7,13 @@ SUBPATH = "DyT" if USE_DYT else "Norm"
 CHECKPOINT_DIR = f"checkpoints/{MODEL}/{SUBPATH}"
 IMAGE_FOLDER = f"images/{MODEL}/{SUBPATH}"
 RESULT_FOLDER = f"results/{MODEL}/{SUBPATH}"
-TRAIN_MODEL = True  # Set to False if you want to use a pre-trained model
-LOAD_WEIGHTS = False  # Set to False if you want to train from scratch
+TRAIN_MODEL = False  # Set to False if you want to use a pre-trained model
+LOAD_WEIGHTS = True  # Set to False if you want to train from scratch
 
 # --- Data configurations ---
 DOWNLOAD_DATASET = True  # Set to False if you have already downloaded the dataset
 DELETE_CACHE_DATASET = False  # Set to True if you want to delete the cached dataset when the script ends
-
+VAL_SPLIT = 0.2  # Set to None if you don't want to split the training set into training and validation sets
 DATASET_TO_USE = "mvtec" # mvtec, btad
 
 MVTEC_ROOT = f"dataset/mvtec-ad" # if you have downloaded the dataset, set the path here
@@ -27,8 +27,10 @@ BTAD_KAGGLE_DOWNLOAD_URL = "thtuan/btad-beantech-anomaly-detection"
 #  "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
 #  "transistor", "wood", "zipper"
 MVTEC_CATEGORIES = [
-    "capsule"
-    ]
+     "bottle", "cable", "capsule", "carpet", "grid", "hazelnut",
+     "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
+     "transistor", "wood", "zipper"
+     ]
 
 # All categories in BTAD dataset
 # "01", "02", "03"
@@ -36,17 +38,19 @@ BTAD_CATEGORIES = ["01", "02", "03"]
 
 # --- Training configurations ---
 IMG_SIZE = (512, 512)
-BATCH_SIZE = 4
-EPOCHS = 50
+BATCH_SIZE = 2
+EPOCHS = 20
 LR = 1e-4
 WEIGHT_DECAY = 1e-5
 
 # -- Runtime Settings --
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-NUM_WORKERS = 4
+NUM_WORKERS = 6
 RANDOM_SEED = 42
 NUM_IMAGES_TO_SAVE = 8
 
 # -- Plotting configurations ---
 IMAGE_TO_PLOT_MVTEC = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]  # Indices of images to plot for each category
 IMAGE_TO_PLOT_BTAD = [0,0,0]  # Indices of images to plot for each category
+KERNEL_SIZE = 7  # Kernel size for Gaussian blur
+SIGMA = 1.0  # Sigma for Gaussian blur

@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import timm
 import logging
+import config
 timm_logger = logging.getLogger('timm')
 timm_logger.setLevel(logging.ERROR)
 
@@ -100,13 +101,14 @@ class TransformerEncoderLayer(nn.Module):
     """
     def __init__(self, d_model, n_head, sequence_length, dim_feedforward=1024, use_dyt=False):
         super().__init__()
-        self.pos_embedding = nn.Parameter(torch.randn(1, sequence_length, d_model))
+        #self.pos_embedding = nn.Parameter(torch.randn(1, sequence_length, d_model))
         self.ln1 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.mha = MultiHeadAttention(d_model, n_head)
         self.ln2 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.mlp = nn.Sequential(
             nn.Linear(d_model, dim_feedforward),
             nn.GELU(),
+            nn.Dropout(p=0.1),
             nn.Linear(dim_feedforward, d_model)
         )
 
@@ -115,7 +117,7 @@ class TransformerEncoderLayer(nn.Module):
         Args:
             x: Input tensor of shape [batch_size, seq_len, d_model]
         """
-        x = x + self.pos_embedding
+        #x = x + self.pos_embedding
         x = x + self.mha(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
@@ -129,13 +131,14 @@ class TransformerDecoderLayer(nn.Module):
     def __init__(self, d_model, n_head, sequence_length, dim_feedforward=1024, use_dyt=False):
         super().__init__()
         self.self_attn = MultiHeadAttention(d_model, n_head)
-        self.pos_embedding = nn.Parameter(torch.randn(1, sequence_length, d_model))
+        #self.pos_embedding = nn.Parameter(torch.randn(1, sequence_length, d_model))
         self.ln1 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.cross_attn = MultiHeadCrossAttention(d_model, n_head)
         self.ln2 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
         self.ffn = nn.Sequential(
             nn.Linear(d_model, dim_feedforward),
             nn.GELU(),
+            nn.Dropout(p=0.1),
             nn.Linear(dim_feedforward, d_model)
         )
         self.ln3 = DyT(C=d_model) if use_dyt else nn.LayerNorm(d_model)
@@ -146,7 +149,7 @@ class TransformerDecoderLayer(nn.Module):
             x: Input tensor from the previous decoder layer (i.e., query embedding).
             encoder_output: Output tensor from the encoder.
         """
-        x = x + self.pos_embedding
+        #x = x + self.pos_embedding
         # Self-attention over the queries. No mask needed for this architecture.
         x = x + self.self_attn(self.ln1(x))
         # Cross-attention with encoder output
@@ -162,10 +165,12 @@ class Transformer(nn.Module):
     """
     def __init__(self, d_model, n_head, n_encoder_layers, n_decoder_layers, sequence_length, dim_feedforward, use_dyt=False):
         super().__init__()
+        self.pos_embedding_enc = nn.Parameter(torch.randn(1, sequence_length, d_model))
         self.encoder_layers = nn.ModuleList([
             TransformerEncoderLayer(d_model, n_head, sequence_length, dim_feedforward, use_dyt=use_dyt)
             for _ in range(n_encoder_layers)
         ])
+        self.pos_embedding_dec = nn.Parameter(torch.randn(1, sequence_length, d_model))
         self.decoder_layers = nn.ModuleList([
             TransformerDecoderLayer(d_model, n_head, sequence_length, dim_feedforward, use_dyt=use_dyt)
             for _ in range(n_decoder_layers)
@@ -178,67 +183,133 @@ class Transformer(nn.Module):
             tgt: The target sequence for the decoder (query_embedding).
         """
         # --- ENCODER PASS ---
-        encoder_output = src
+        encoder_output = src + self.pos_embedding_enc
         for encoder_layer in self.encoder_layers:
             encoder_output = encoder_layer(encoder_output)
 
         # --- DECODER PASS ---
-        decoder_output = tgt
+        decoder_output = tgt + self.pos_embedding_dec
         for decoder_layer in self.decoder_layers:
             decoder_output = decoder_layer(decoder_output, encoder_output)
 
         return decoder_output
-    
-class FPN(nn.Module):
-    """A simple Feature Pyramid Network to fuse multi-scale features."""
-    def __init__(self, in_channels_list, out_channels):
-        super(FPN, self).__init__()
-        self.lateral_convs = nn.ModuleList()
-        self.fpn_convs = nn.ModuleList()
 
-        for in_channels in in_channels_list:
-            self.lateral_convs.append(nn.Conv2d(in_channels, out_channels, kernel_size=1))
-            self.fpn_convs.append(nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1))
+class WeightedFeatureFusion(nn.Module):
+    """
+    Weighted Feature Fusion module for BiFPN.
+    The sum is learned dinamically using learnable weights.
+    """
+    def __init__(self, num_inputs):
+        super(WeightedFeatureFusion, self).__init__()
+        # Create a learnable weight for each input feature map
+        # nn.parameter tells PyTorch that this is a parameter that should be optimized during training.
+        self.weights = nn.Parameter(torch.ones(num_inputs, dtype=torch.float32), requires_grad=True)
+        self.relu = nn.ReLU()
+        self.epsilon = 1e-4
 
-    def forward(self, features):
-        # features is a list of feature maps from the backbone
+    def forward(self, inputs):
+        # Normalize weights to sum to 1 this is done to ensure that the fusion is a convex combination of the inputs
+        # and prevent the feature map from becoming too large
+        weights = self.relu(self.weights)
+        weights = weights / (torch.sum(weights, dim=0) + self.epsilon)
         
-        # 1. Apply lateral connections (1x1 convs)
+        # Calculate the weighted sum of features
+        fused_features = 0
+        for i, x in enumerate(inputs):
+            fused_features += weights[i] * x
+        return fused_features
+
+class BiFPN(nn.Module):
+    def __init__(self, in_channels_list, out_channels):
+        super(BiFPN, self).__init__()
+        self.out_channels = out_channels
+
+        # 1. Lateral connections (uniform 1x1 convolutions)
+        self.lateral_convs = nn.ModuleList([
+            nn.Conv2d(in_channels, out_channels, kernel_size=1) for in_channels in in_channels_list
+        ])
+
+        # 2. Refinement convolutions for each path
+        self.refinement_convs = nn.ModuleList([
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1) for _ in in_channels_list
+        ])
+
+        # 3. Downsampling for the bottom-up path
+        self.downsample_convs = nn.ModuleList([
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=2, padding=1) for _ in range(len(in_channels_list) - 1)
+        ])
+
+        # We need a fusion node for each point where features are combined.
+        # Top-down fusion nodes (each takes 2 inputs)
+        self.td_fusion_nodes = nn.ModuleList([
+            WeightedFeatureFusion(num_inputs=2) for _ in range(len(in_channels_list) - 1)
+        ])
+        # Bottom-up fusion nodes (most take 3 inputs, last one takes 2)
+        self.bu_fusion_nodes = nn.ModuleList([
+            WeightedFeatureFusion(num_inputs=3) for _ in range(len(in_channels_list) - 1)
+        ])
+        
+    def forward(self, features):
+        # Initial 1x1 convolutions on backbone features
         laterals = [conv(feat) for conv, feat in zip(self.lateral_convs, features)]
+        num_laterals = len(laterals)
 
-        # 2. Top-down pathway with upsampling and addition
-        for i in range(len(laterals) - 2, -1, -1):
-            # Upsample the coarser feature map and add it to the finer one
-            laterals[i] += F.interpolate(laterals[i + 1], size=laterals[i].shape[2:], mode='nearest')
+        # --- Top-Down Pathway ---
+        # Start with the coarsest lateral feature
+        td_path = [laterals[-1]] 
+        for i in range(num_laterals - 2, -1, -1):
+            # Fuse the current lateral with the upsampled feature from the coarser level
+            upsampled_feat = F.interpolate(td_path[-1], size=laterals[i].shape[2:], mode='bilinear', align_corners=False)
+            fused_node = self.td_fusion_nodes[i]([laterals[i], upsampled_feat])
+            td_path.append(fused_node)
+        # Reverse the list to be in fine-to-coarse order [P3, P4, P5, ...]
+        td_path.reverse()
 
-        # 3. Apply final 3x3 convolutions to each fused map
-        # This generates the final set of feature pyramids
-        return [conv(lat) for conv, lat in zip(self.fpn_convs, laterals)]
+        # --- Bottom-Up Pathway with Cross-Scale Connections ---
+        output_features = [td_path[0]] # The finest level has no bottom-up input
+        for i in range(num_laterals - 1):
+            # Fuse:
+            # 1. The original lateral feature (cross-scale connection)
+            # 2. The feature from the top-down path
+            # 3. The downsampled feature from the finer level in the bottom-up path
+            downsampled_feat = self.downsample_convs[i](output_features[-1])
+            fused_node = self.bu_fusion_nodes[i]([
+                laterals[i + 1],          # Input 1: Original lateral
+                td_path[i + 1],           # Input 2: Top-down path result
+                downsampled_feat          # Input 3: Bottom-up path result
+            ])
+            output_features.append(fused_node)
+
+        # Apply final 3x3 refinement convolutions to the final output
+        output_features = [conv(feat) for conv, feat in zip(self.refinement_convs, output_features)]
+
+        return output_features
 
 class AdtrEmbedding(nn.Module):
     """Embedding stage of ADTR using a pre-trained backbone."""
-    def __init__(self):
+    def __init__(self, out_channels=256):
         super(AdtrEmbedding, self).__init__()
-        self.backbone = timm.create_model('efficientnet_b4', pretrained=True, features_only=True, out_indices=(1,3,4))
+        self.backbone = timm.create_model('efficientnet_b5.sw_in12k', pretrained=True, features_only=True, out_indices=(1,2,3,4))
         for param in self.backbone.parameters():
             param.requires_grad = False
-
+            
         backbone_out_channels = self.backbone.feature_info.channels()
-        self.fpn_out_channels = 512
+        self.fpn_out_channels = out_channels
 
-        self.fpn = FPN(in_channels_list=backbone_out_channels, out_channels=self.fpn_out_channels)
+        self.fpn = BiFPN(in_channels_list=backbone_out_channels, out_channels=self.fpn_out_channels)
+        
             
     def forward(self, x):
         self.backbone.eval()
         features = self.backbone(x)
-        fused_features = self.fpn(features)
-        target_size = fused_features[1].shape[2:] 
-        resized_features = [F.interpolate(feat, size=target_size, mode='bilinear', align_corners=False) for feat in fused_features]
+        features = self.fpn(features)
+        target_size = features[2].shape[2:]
+        resized_features = [F.interpolate(feat, size=target_size, mode='bilinear', align_corners=False) for feat in features]
         return torch.cat(resized_features, dim=1)
 
 class AdtrReconstruction(nn.Module):
     """Reconstruction stage of ADTR using a Transformer."""
-    def __init__(self, in_channels=512*3, transformer_dim=512, n_heads=16, n_encoder_layers=6, n_decoder_layers=6, dim_feedforward=2048, use_dyt=False, sequence_length=256):
+    def __init__(self, in_channels=256*5, transformer_dim=256, n_heads=8, n_encoder_layers=4, n_decoder_layers=4, dim_feedforward=1024, use_dyt=False, sequence_length=256):
         super(AdtrReconstruction, self).__init__()
         self.transformer_dim = transformer_dim
         self.input_proj = nn.Conv2d(in_channels, transformer_dim, kernel_size=1)
@@ -257,6 +328,9 @@ class AdtrReconstruction(nn.Module):
         
     def forward(self, x):
         projected_x = self.input_proj(x)
+        if self.training:
+            noise = torch.randn_like(projected_x) * 0.1 
+            projected_x = projected_x + noise
         N, C, H, W = projected_x.shape
         flattened_x = projected_x.flatten(2).permute(0, 2, 1)
         
@@ -266,9 +340,12 @@ class AdtrReconstruction(nn.Module):
 
 class ADTR_FPN(nn.Module):
     """The complete ADTR model."""
-    def __init__(self, in_channels=512*3, transformer_dim=512, use_dyt=False, img_size=512):
+    def __init__(self, in_channels=256*5, out_channels_fpn=256, transformer_dim=256):
         super(ADTR_FPN, self).__init__()
-        self.embedding = AdtrEmbedding()
+        use_dyt=config.USE_DYT
+        img_size=config.IMG_SIZE[0]
+        
+        self.embedding = AdtrEmbedding(out_channels=out_channels_fpn)
         sequence_length = (img_size // 16) ** 2
 
         self.reconstruction = AdtrReconstruction(in_channels, transformer_dim, use_dyt=use_dyt, sequence_length=sequence_length, dim_feedforward=4*transformer_dim)
