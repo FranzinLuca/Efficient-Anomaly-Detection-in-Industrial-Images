@@ -45,6 +45,10 @@ def save_visualizations(model, data_loader, category):
             # Stop if we have already saved the required number of images
             if saved_count >= n_images:
                 break
+            
+            # if labels doesn't have anomaly labels, skip this batch
+            if not torch.any(labels == 1):
+                continue
 
             images = images.to(config.DEVICE)
 

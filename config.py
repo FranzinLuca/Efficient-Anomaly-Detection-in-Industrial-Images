@@ -27,9 +27,7 @@ BTAD_KAGGLE_DOWNLOAD_URL = "thtuan/btad-beantech-anomaly-detection"
 #  "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
 #  "transistor", "wood", "zipper"
 MVTEC_CATEGORIES = [
-     "bottle", "cable", "capsule", "carpet", "grid", "hazelnut",
-     "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
-     "transistor", "wood", "zipper"
+     "grid"
      ]
 
 # All categories in BTAD dataset
