@@ -12,6 +12,8 @@ import numpy as np
 import matplotlib.image as mpimg
 from torchvision.transforms.functional import gaussian_blur
 import config
+from scipy.ndimage import gaussian_filter
+from sklearn.metrics import roc_curve, auc
 
 def save_visualizations(model, data_loader, category):
     """
@@ -53,9 +55,15 @@ def save_visualizations(model, data_loader, category):
             images = images.to(config.DEVICE)
 
             # Get model predictions
-            original_features, reconstructed_features = model(images)
-            anomaly_map = model.get_anomaly_map(original_features, reconstructed_features)
-            anomaly_map_resized = F.interpolate(anomaly_map, size=images.shape[2:], mode='bilinear', align_corners=False)
+            if config.MODEL == 'ANOVit':
+                reconstructed_images = model(images)
+                anomaly_map = model.get_anomaly_map(images, reconstructed_images)
+                anomaly_map_resized = anomaly_map
+            else:
+                original_features, reconstructed_features = model(images)
+                anomaly_map = model.get_anomaly_map(original_features, reconstructed_features)
+                anomaly_map_resized = F.interpolate(anomaly_map, size=images.shape[2:], mode='bilinear', align_corners=False)
+            
             anomaly_map_resized = gaussian_blur(anomaly_map_resized, kernel_size=config.KERNEL_SIZE, sigma=config.SIGMA)
 
             # Move data to CPU for plotting

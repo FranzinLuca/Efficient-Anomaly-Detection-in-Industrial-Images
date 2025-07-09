@@ -6,7 +6,6 @@ from tqdm import tqdm
 from torch.nn.utils import clip_grad_norm_
 import torch
 import config
-import os
 
 def Train_one_epoch(optimizer, model, dataloader_train, criterion, device, scheduler=None):
     model.train()
@@ -19,8 +18,12 @@ def Train_one_epoch(optimizer, model, dataloader_train, criterion, device, sched
 
         optimizer.zero_grad()
 
-        original_features, reconstructed_features = model(images)
-        loss = criterion(reconstructed_features, original_features)
+        if config.MODEL == "ANOVit":
+            reconstructed_images = model(images)
+            loss = criterion(reconstructed_images, images)
+        else:
+            original_features, reconstructed_features = model(images)
+            loss = criterion(reconstructed_features, original_features)
         
         loss.backward()
         clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -43,8 +46,12 @@ def run_validation_epoch(model, val_loader, loss_fn, device):
     with torch.no_grad():
         for imgs, _, _ in val_loader:
             imgs = imgs.to(device)
-            original_features, reconstructed_features = model(imgs)
-            loss = loss_fn(reconstructed_features, original_features)
+            if config.MODEL == "ANOVit":
+                reconstructed_images = model(imgs)
+                loss = loss_fn(reconstructed_images, imgs)
+            else:
+                original_features, reconstructed_features = model(imgs)
+                loss = loss_fn(reconstructed_features, original_features)
             running_loss += loss.item()
     average_loss = running_loss / len(val_loader)
     return average_loss

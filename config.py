@@ -2,7 +2,7 @@ import torch
 
 # -- Model Configuration ---
 USE_DYT = True  # Use Dynamic Tensor for ADTR
-MODEL = "ADTR_FPN" # ADTR_FPN, ADTR
+MODEL = "ANOVit" # ADTR_FPN, ADTR, ANOVit
 SUBPATH = "DyT" if USE_DYT else "Norm"
 CHECKPOINT_DIR = f"checkpoints/{MODEL}/{SUBPATH}"
 IMAGE_FOLDER = f"images/{MODEL}/{SUBPATH}"
@@ -27,19 +27,27 @@ BTAD_KAGGLE_DOWNLOAD_URL = "thtuan/btad-beantech-anomaly-detection"
 #  "leather", "metal_nut", "pill", "screw", "tile", "toothbrush",
 #  "transistor", "wood", "zipper"
 MVTEC_CATEGORIES = [
-     "grid"
+     "bottle"
      ]
 
 # All categories in BTAD dataset
 # "01", "02", "03"
-BTAD_CATEGORIES = ["01", "02", "03"]
+BTAD_CATEGORIES = ["03"]
 
 # --- Training configurations ---
 IMG_SIZE = (512, 512)
 BATCH_SIZE = 2
-EPOCHS = 20
+EPOCHS = 1
 LR = 1e-4
 WEIGHT_DECAY = 1e-5
+# -- ANOViT specific configurations --
+PATCH_SIZE = (16, 16)  # Patch size for ANOViT
+D_MODEL = 256  # Dimension of the model for ANOViT
+N_CHANNELS = 3  # Number of input channels (RGB)
+N_HEADS = 1  # Number of attention heads for ANOViT
+N_LAYERS = 1  # Number of transformer layers for ANOViT
+LAMBDA_RECON = 0.85  # Weight for reconstruction loss in ANOViT
+
 
 # -- Runtime Settings --
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
