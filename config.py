@@ -1,7 +1,7 @@
 import torch
 
 # -- Model Configuration ---
-USE_DYT = True  # Use Dynamic Tensor for ADTR
+USE_DYT = False  # Use Dynamic Tensor for ADTR
 MODEL = "ADTR_FPN" # ADTR_FPN, ADTR, ANOVit
 SUBPATH = "DyT" if USE_DYT else "Norm"
 CHECKPOINT_DIR = f"checkpoints/{MODEL}/{SUBPATH}"
@@ -34,7 +34,7 @@ MVTEC_CATEGORIES = [
 
 # All categories in BTAD dataset
 # "01", "02", "03"
-BTAD_CATEGORIES = ["03"]
+BTAD_CATEGORIES = ["02", "03"]
 
 # --- Training configurations ---
 IMG_SIZE = (512, 512)
