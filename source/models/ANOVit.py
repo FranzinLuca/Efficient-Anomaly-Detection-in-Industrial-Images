@@ -203,6 +203,7 @@ class Decoder(nn.Module):
         self.up3 = up_block(base_channels * 4, base_channels * 2) # 64→128
         self.up4 = up_block(base_channels * 2, base_channels)    # 128→256
         self.final = nn.Conv2d(base_channels, out_channels, kernel_size=3, padding=1)
+        self.tanh= nn.Tanh()
 
     def forward(self, x):
         x = x[:, 1:, :] #remove CLS Token
@@ -218,7 +219,7 @@ class Decoder(nn.Module):
         x = self.up2(x)
         x = self.up3(x)
         x = self.up4(x)
-        x = F.sigmoid(self.final(x))
+        x = self.tanh(self.final(x))
         return x
 
 class ANOVit(nn.Module):
