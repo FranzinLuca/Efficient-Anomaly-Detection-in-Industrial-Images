@@ -7,8 +7,7 @@ from torchvision.transforms.functional import gaussian_blur
 import config
 from sklearn.metrics import accuracy_score, f1_score,roc_curve,roc_auc_score
 import piq
-from losses import denormalize 
-
+from source.losses import denormalize
 def evaluate_model(model, dataloader):
     """
     Evaluate the model on the validation/test dataset.
