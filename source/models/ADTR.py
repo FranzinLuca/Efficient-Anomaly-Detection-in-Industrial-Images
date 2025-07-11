@@ -1,8 +1,3 @@
-"""
-ADTR
-This module implements the ADTR (Anomaly Detection Transformer) model with efficientnet_b5.sw_in12k as the backbone.
-"""
-
 import torch
 import torch.nn as nn
 import timm
@@ -192,14 +187,13 @@ class TransformerDecoderLayer(nn.Module):
         self.norm3 = DyT(C=d_model)
     else:
         self.norm1 = nn.LayerNorm(d_model)
-        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model)
     
     self.self_attn = MultiHeadAttention(d_model, n_heads)
     self.cross_attn = MultiHeadCrossAttention(d_model, n_heads)
     
-    self.positional_encoding = PositionalEncoding(patch_num, d_model)    
-
+    self.positional_encoding1 = PositionalEncoding(patch_num, d_model)     
     
     self.ffn = nn.Sequential(
         nn.Linear(d_model, d_model * r_mlp),
@@ -208,7 +202,7 @@ class TransformerDecoderLayer(nn.Module):
     )
 
   def forward(self, x, encoder_output):
-    x = self.positional_encoding(x)
+    x = self.positional_encoding1(x)
     x = x + self.self_attn(self.norm1(x))
     x = x + self.cross_attn(self.norm2(x), encoder_output)
     x = x + self.ffn(self.norm3(x))
@@ -247,7 +241,7 @@ class Transformer_union(nn.Module):
         return decoder_output  
   
 class ADTR(nn.Module):
-    def __init__(self, d_model=1024, patch_num=24*24, n_heads=8, n_layers=4, img_size=24, n_channels=816, batch_size=4, use_dyt=True):
+    def __init__(self, d_model=1200, patch_num=24*24, n_heads=8, n_layers=4, img_size=24, n_channels=816, batch_size=4, use_dyt=True):
         super().__init__()
         self.d_model = d_model
         self.patch_num = patch_num
