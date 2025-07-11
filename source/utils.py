@@ -14,7 +14,7 @@ from torchvision.transforms.functional import gaussian_blur
 import config
 from scipy.ndimage import gaussian_filter
 from sklearn.metrics import roc_curve, auc
-
+from source.losses import denormalize
 def save_visualizations(model, data_loader, category):
     """
     Generates and saves 3-column visualizations for anomaly detection results.
@@ -67,9 +67,15 @@ def save_visualizations(model, data_loader, category):
             anomaly_map_resized = gaussian_blur(anomaly_map_resized, kernel_size=config.KERNEL_SIZE, sigma=config.SIGMA)
 
             # Move data to CPU for plotting
-            images_cpu = images.cpu()
+            if config.MODEL == 'ANOVit':
+                images_cpu = denormalize(images).cpu()
+                anomaly_map_cpu = denormalize(anomaly_map_resized).cpu().numpy()
+            else:
+                images_cpu = images.cpu()
+                anomaly_map_cpu = anomaly_map_resized.cpu().numpy()
+
             masks_cpu = masks.cpu().numpy()
-            anomaly_map_cpu = anomaly_map_resized.cpu().numpy()
+            
             labels_cpu = labels.cpu().numpy()
 
             # 3. Process and save each image in the current batch
@@ -96,7 +102,10 @@ def save_visualizations(model, data_loader, category):
 
                 # Column 3: Predicted Anomaly Overlay
                 axs[2].imshow(img_to_show)
-                axs[2].imshow(anomaly_map_cpu[i, 0], cmap='jet', alpha=0.6) # alpha adjusted for better visibility
+                if config.MODEL == 'ANOVit':
+                    axs[2].imshow(anomaly_map_cpu[i, 0], cmap='hot', alpha=0.5) # alpha adjusted for better visibility
+                else:
+                    axs[2].imshow(anomaly_map_cpu[i, 0], cmap='jet', alpha=0.6)
                 axs[2].set_title("Predicted Anomaly")
                 axs[2].axis('off')
 
