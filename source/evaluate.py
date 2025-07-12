@@ -111,7 +111,7 @@ def evaluate_ANOViT(model, dataloader, device):
             flat_map = anomaly_map.view(anomaly_map.shape[0], -1)
             mean_error_per_image = flat_map.mean(dim=1)
             
-            ssim_per_image = piq.ssim(denormalize(recon_img),denormalize(image), data_range=1.0, reduction="none")
+            ssim_per_image = piq.ssim(recon_img,image, data_range=1.0, reduction="none")
             ssim_dissimilarity_per_image = 1.0 - ssim_per_image
             
             all_labels.extend(anomaly_label.numpy())

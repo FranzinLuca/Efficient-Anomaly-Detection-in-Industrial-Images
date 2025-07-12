@@ -67,12 +67,9 @@ def save_visualizations(model, data_loader, category):
             anomaly_map_resized = gaussian_blur(anomaly_map_resized, kernel_size=config.KERNEL_SIZE, sigma=config.SIGMA)
 
             # Move data to CPU for plotting
-            if config.MODEL == 'ANOVit':
-                images_cpu = denormalize(images).cpu()
-                anomaly_map_cpu = denormalize(anomaly_map_resized).cpu().numpy()
-            else:
-                images_cpu = images.cpu()
-                anomaly_map_cpu = anomaly_map_resized.cpu().numpy()
+        
+            images_cpu = images.cpu()
+            anomaly_map_cpu = anomaly_map_resized.cpu().numpy()
 
             masks_cpu = masks.cpu().numpy()
             
