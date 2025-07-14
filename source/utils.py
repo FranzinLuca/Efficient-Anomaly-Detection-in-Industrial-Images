@@ -64,7 +64,8 @@ def save_visualizations(model, data_loader, category):
                 anomaly_map = model.get_anomaly_map(original_features, reconstructed_features)
                 anomaly_map_resized = F.interpolate(anomaly_map, size=images.shape[2:], mode='bilinear', align_corners=False)
             
-            anomaly_map_resized = gaussian_blur(anomaly_map_resized, kernel_size=config.KERNEL_SIZE, sigma=config.SIGMA)
+            if config.MODEL!= 'ANOVit':
+                anomaly_map_resized = gaussian_blur(anomaly_map_resized, kernel_size=config.KERNEL_SIZE, sigma=config.SIGMA)
 
             # Move data to CPU for plotting
         
