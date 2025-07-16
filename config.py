@@ -34,7 +34,7 @@ MVTEC_CATEGORIES = [
 
 # All categories in BTAD dataset
 # "01", "02", "03"
-BTAD_CATEGORIES = ["02", "03"]
+BTAD_CATEGORIES = ["01", "02", "03"]
 
 # --- Training configurations ---
 IMG_SIZE = (512, 512)
