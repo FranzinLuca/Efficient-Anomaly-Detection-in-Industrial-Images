@@ -27,7 +27,7 @@ Make sure you have Python 3 and pip installed.
 
 The primary configuration for the project is handled in the `config.py` file. Key parameters include:
 
-  * `USE_DYT`: Enable or disable Dynamic Tensor for ADTR.
+  * `USE_DYT`: Enable or disable Dynamic Tanh for ADTR.
   * `MODEL`: Select the model: "ADTR\_FPN", "ADTR", or "ANOVit".
   * `DATASET_TO_USE`: Choose the dataset: "mvtec" or "btad".
   * `TRAIN_MODEL`: Set to `True` to train the model, or `False` to load a pre-trained model.
