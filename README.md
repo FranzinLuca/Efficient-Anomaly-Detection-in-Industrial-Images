@@ -11,7 +11,7 @@ Make sure you have Python 3 and pip installed.
 1.  Clone the repository:
 
     ```bash
-    git clone [https://github.com/your-username/Efficient-Anomaly-Detection.git](https://github.com/FranzinLuca/Efficient-Anomaly-Detection-in-Industrial-Images.git)
+    git clone https://github.com/FranzinLuca/Efficient-Anomaly-Detection-in-Industrial-Images.git
     cd Efficient-Anomaly-Detection
     ```
 
