@@ -12,7 +12,7 @@ Make sure you have Python 3 and pip installed.
 
     ```bash
     git clone https://github.com/FranzinLuca/Efficient-Anomaly-Detection-in-Industrial-Images.git
-    cd Efficient-Anomaly-Detection
+    cd Efficient-Anomaly-Detection-in-Industrial-Images
     ```
 
 2.  Install the required packages from `requirements.txt`:
