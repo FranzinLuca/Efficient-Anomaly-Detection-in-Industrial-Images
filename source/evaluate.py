@@ -127,9 +127,7 @@ def evaluate_ANOViT(model, dataloader, device):
     all_gt_masks_np = torch.cat(all_gt_masks).cpu().numpy()
     all_labels_np = np.array(all_labels)
 
-    mse_norm = (mean_scores_tensor - mean_scores_tensor.min()) / (mean_scores_tensor.max() - mean_scores_tensor.min() + 1e-8)
-    ssim_norm = (ssim_scores_tensor - ssim_scores_tensor.min()) / (ssim_scores_tensor.max() - ssim_scores_tensor.min() + 1e-8)
-    combined_scores = ((lambda_mean / total_weight) * mse_norm) + ((lambda_ssim / total_weight) * ssim_norm)
+    combined_scores = ((lambda_mean / total_weight) * mean_scores_tensor) + ((lambda_ssim / total_weight) * ssim_scores_tensor)
 
     image_auroc = roc_auc_score(all_labels_np, combined_scores)
     
