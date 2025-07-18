@@ -61,9 +61,9 @@ The evaluation results are saved to a CSV file in the `results/` directory. Addi
 
 This project includes three powerful models for anomaly detection:
 
-### ADTR (Anomaly Detection Transformer)
+### ADTR_Heavy (Anomaly Detection Transformer)
 
-The **ADTR** model is an efficient anomaly detection transformer that leverages a pre-trained EfficientNet-B5 as a backbone to extract features from the input images. These features are then processed by a transformer-based architecture to reconstruct the image and identify anomalies.
+The **ADTR_Heavy** model is an efficient anomaly detection transformer that leverages a pre-trained EfficientNet-B5 as a backbone to extract features from the input images. These features are then processed by a transformer-based architecture to reconstruct the image and identify anomalies.
 
 **Key Features:**
 
@@ -91,7 +91,15 @@ The **ANOVit** model is a Vision Transformer (ViT) based approach to anomaly det
   * **Decoder for Reconstruction**: A decoder network is used to reconstruct the original image from the learned features.
   * **Pixel-Level Anomaly Detection**: The model can generate a pixel-level anomaly map by comparing the reconstructed image with the original input, allowing for precise localization of anomalies.
 
------
+## Configurations:
+
+| Parameter | ADTR_Heavy | ADTR_FPN | ANOVit |
+| :--- | :--- | :--- | :--- |
+| **epoch** | 20 | 20 | 400 |
+| **patch_size** | `(24, 24)` | x | `(16, 16)` |
+| **d_model** | 1200 | x | 1024 |
+| **heads** | 4 | x | 16 |
+| **layers** | 4 | x | 12 |
 
 ## Project Structure
 
