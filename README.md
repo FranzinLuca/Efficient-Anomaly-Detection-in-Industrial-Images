@@ -96,10 +96,10 @@ The **ANOVit** model is a Vision Transformer (ViT) based approach to anomaly det
 | Parameter | ADTR_Heavy | ADTR_FPN | ANOVit |
 | :--- | :--- | :--- | :--- |
 | **epoch** | 20 | 20 | 400 |
-| **patch_size** | `(24, 24)` | x | `(16, 16)` |
-| **d_model** | 1200 | x | 1024 |
-| **heads** | 4 | x | 16 |
-| **layers** | 4 | x | 12 |
+| **patch_size** | `(24, 24)` | None | `(16, 16)` |
+| **d_model** | 1200 | 1024 | 1024 |
+| **heads** | 4 | 8 | 16 |
+| **layers** | 4 | 4 | 12 |
 
 ## Project Structure
 
